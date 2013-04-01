@@ -1,13 +1,12 @@
 import qbs.base 1.0
-import qbs.fileinfo 1.0 as FileInfo
+import qbs.fileinfo as FileInfo
 
 Product {
-    type: ["staticlibrary", "installed_content"]
+    type: ["staticlibrary"]
     name: "vreenoauth"
     destination: "lib"
 
     //cpp.warningLevel: "all"
-    cpp.defines: []
 
     Depends { name: "cpp" }
     Depends { name: "qt"; submodules: ['core', 'network', 'widgets', 'webkit', 'webkitWidgets'] }
@@ -18,21 +17,17 @@ Product {
         "*.cpp"
     ]
 
-//    Group {
-//        qbs.installDir: "include/vreen/auth"
-//        overrideTags: false
-//        fileTags: ["install"]
-//        files: ["*.h"]
-//    }
     Properties {
         condition: qt.core.versionMajor === 5
-        cpp.defines: outer.concat("QT_DISABLE_DEPRECATED_BEFORE=0")
+        cpp.defines: base.concat("QT_DISABLE_DEPRECATED_BEFORE=0")
     }
 
     ProductModule {
         Depends { name: "cpp" }
         Depends { name: "qt.webkit"}
         Depends { name: "qt.webkitwidgets"}
+        
+        cpp.defines: base.concat("VREEN_WITH_OAUTH")
     }
 
     Group {
@@ -40,6 +35,7 @@ Product {
         fileTags: ["hpp", "devheader"]
         overrideTags: false
         qbs.installDir: "include/vreen/auth"
+        qbs.install: true
     }
 }
 

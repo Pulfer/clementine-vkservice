@@ -15,19 +15,16 @@ Module {
     property string versionRelease: 5
     property string version: versionMajor + '.' + versionMinor + '.' + versionRelease
 
-    cpp.cxxFlags: base
-    cpp.defines: base
-
     Depends { name: "cpp" }
     Depends { name: "qt.core"}
 
     Properties {
         condition: qbs.toolchain != 'msvc'
-        cpp.cxxFlags: outer.concat([ "-std=c++11" ])
+        cpp.cxxFlags: base.concat([ "-std=c++11" ])
     }
     Properties {
         condition: qbs.targetOS == "mac"
-        cpp.cxxFlags: outer.concat([ "-stdlib=libc++" ])
+        cpp.cxxFlags: base.concat([ "-stdlib=libc++" ])
     }
 
     setupRunEnvironment: {
@@ -38,7 +35,7 @@ Module {
         inputs: [ "devheader" ]
         Artifact {
             fileTags: [ "hpp",  "installed_content" ]
-            fileName: "GeneratedFiles/" + input.modules.qbs.installDir + "/" + input.fileName
+            fileName: "GeneratedFiles/" + input.moduleProperty("qbs", "installDir") + "/" + input.fileName
         }
 
         prepare: {
@@ -60,7 +57,7 @@ Module {
         inputs: [ "qml" ]
         Artifact {
             fileTags: [ "installed_content" ]
-            fileName: input.modules.qbs.installDir + "/" + input.fileName
+            fileName: input.moduleProperty("qbs", "installDir") + "/" + input.fileName
         }
 
         prepare: {

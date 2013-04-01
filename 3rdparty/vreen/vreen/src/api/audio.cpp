@@ -24,7 +24,6 @@
 ****************************************************************************/
 #include "audio.h"
 #include "client.h"
-
 #include "reply_p.h"
 #include "utils_p.h"
 #include <QUrl>

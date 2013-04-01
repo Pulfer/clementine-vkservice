@@ -2,21 +2,16 @@ import qbs.base 1.0
 
 Product {
     name: "vreenplugin"
-    type: ["dynamiclibrary", "installed_content"]
+    type: ["dynamiclibrary"]
 
     property string uri: "com.vk.api"
     property bool system: false
 
-    function toPath(uri) {
-        return uri.replace(/\./g, "/")
-    }
-
-    destination: vreen.core.qmlDestination + "/" + toPath(uri);
+    destination: vreen.core.qmlDestination + "/" + uri.replace(/\./g, "/");
 
     cpp.includePaths: [
         "src"
     ]
-    cpp.defines: base
 
     files: [
         "src/audiomodel.cpp",       "src/buddymodel.h",
@@ -40,16 +35,13 @@ Product {
     Depends { name: "vreen.core" }
 
     Properties {
-        condition: true
-        cpp.defines: outer.concat("VREEN_WITH_OAUTH")
-    }
-    Properties {
         condition: qt.core.versionMajor === 5
-        cpp.defines: outer.concat("QT_DISABLE_DEPRECATED_BEFORE=0")
+        cpp.defines: base.concat("QT_DISABLE_DEPRECATED_BEFORE=0")
     }
 
     Group {
         qbs.installDir: destination
+        qbs.install: true
         vreen.core.qmlDestination: destination
         fileTags: ["qml"]
         files: [
@@ -63,5 +55,10 @@ Product {
     Group {
         condition: qt.core.versionMajor === 5
         files: "vreenplugin_qt5.cpp"
+    }
+    Group {
+        fileTagsFilter: product.type
+        qbs.install: true
+        qbs.installDir: product.destination
     }
 }
