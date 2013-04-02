@@ -355,6 +355,7 @@ void VkService::UpdateMyMusic()
 
     ClearStandartItem(my_music_);
     CreateAndAppendRow(my_music_,Type_Loading);
+    update_my_music_->setEnabled(false);
 
     LoadSongList(0);
 
@@ -367,6 +368,7 @@ void VkService::MyMusicLoaded(RequestID rid, const SongList &songs)
     TRACE VAR(rid.id()) VAR(rid.type()) VAR(&songs)
 
     if(rid.type() == UserAudio and rid.id() == 0) {
+        update_my_music_->setEnabled(true);
         ClearStandartItem(my_music_);
         AppendSongs(my_music_,songs);
     }
@@ -384,6 +386,7 @@ void VkService::UpdateRecommendations()
 
     ClearStandartItem(recommendations_);
     CreateAndAppendRow(recommendations_,Type_Loading);
+    update_recommendations_->setEnabled(false);
 
     auto myAudio = provider_->getRecommendationsForUser(0,50,0);
     NewClosure(myAudio, SIGNAL(resultReady(QVariant)), this,
@@ -403,6 +406,7 @@ void VkService::MoreRecommendations()
     TRACE
 
     RemoveLastRow(recommendations_); // Last row is "More"
+    update_recommendations_->setEnabled(false);
     CreateAndAppendRow(recommendations_,Type_Loading);
     auto myAudio = provider_->getRecommendationsForUser(0,50,recommendations_->rowCount()-1);
 
@@ -416,6 +420,7 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
     TRACE VAR(id.id()) VAR(&songs)
 
     if(id.type() == UserRecomendations) {
+        update_recommendations_->setEnabled(true);
         RemoveLastRow(recommendations_); // Last row is "Loading..."
         AppendSongs(recommendations_,songs);
         CreateAndAppendRow(recommendations_,Type_More);
