@@ -120,7 +120,7 @@ signals:
     
 public slots:
     void ShowConfig();
-    void LoadSongList(uint uid, int count = 0); // zero means - load full list
+    void LoadSongList(uint uid, uint count = 0); // zero means - load full list
 
 private slots:
     /* Connection */

@@ -512,7 +512,7 @@ void VkService::SearchResultLoaded(RequestID rid, const SongList &songs)
  * Load song list methods
  */
 
-void VkService::LoadSongList(uint uid, int count)
+void VkService::LoadSongList(uint uid, uint count)
 {
     TRACE VAR(uid) VAR(count)
 
@@ -522,7 +522,7 @@ void VkService::LoadSongList(uint uid, int count)
                    SLOT(SongListRecived(RequestID,Vreen::AudioItemListReply*)),
                    RequestID(UserAudio,uid), myAudio);
     } else {
-        // If count undefined load all
+        // If count undefined (count = 0) load all
         auto countOfMyAudio = provider_->getCount(uid);
         NewClosure(countOfMyAudio, SIGNAL(resultReady(QVariant)), this,
                    SLOT(CountRecived(RequestID,Vreen::IntReply*)),
