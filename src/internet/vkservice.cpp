@@ -42,6 +42,21 @@ const Scopes VkService::kScopes =
 uint VkService::RequestID::last_id_ = 0;
 
 
+
+/***
+ * Little functions
+ */
+
+inline static void RemoveLastRow(QStandardItem* item){
+    item->removeRow(item->rowCount() - 1);
+}
+
+
+
+/***
+ * VkService realisation
+ */
+
 VkService::VkService(Application *app, InternetModel *parent) :
     InternetService(kServiceName, app, parent, parent),
     root_item_(nullptr),
@@ -395,10 +410,6 @@ void VkService::UpdateRecommendations()
 
     connect(this, SIGNAL(SongListLoaded(RequestID,SongList)),
             this, SLOT(RecommendationsLoaded(RequestID,SongList)));
-}
-
-inline static void RemoveLastRow(QStandardItem* item){
-    item->removeRow(item->rowCount() - 1);
 }
 
 void VkService::MoreRecommendations()
