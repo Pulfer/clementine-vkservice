@@ -97,6 +97,7 @@ VkService::VkService(Application *app, InternetModel *parent) :
             SLOT(Error(Vreen::Client::Error)));
 
     /* Init interface */
+    CreateMenu();
     VkSearchProvider* search_provider = new VkSearchProvider(app_, this);
     search_provider->Init(this);
     app_->global_search()->AddProvider(search_provider);
@@ -141,31 +142,28 @@ void VkService::LazyPopulate(QStandardItem *parent)
     }
 }
 
-void VkService::EnsureMenuCreated()
+void VkService::CreateMenu()
 {
-    if(!context_menu_) {
-        context_menu_ = new QMenu;
+    context_menu_ = new QMenu;
 
-        context_menu_->addActions(GetPlaylistActions());
+    context_menu_->addActions(GetPlaylistActions());
 
-        context_menu_->addSeparator();
-        update_my_music_ = context_menu_->addAction(
-                    IconLoader::Load("view-refresh"), tr("Update My Music"),
-                    this, SLOT(UpdateMyMusic()));
-        update_recommendations_ = context_menu_->addAction(
-                    IconLoader::Load("view-refresh"), tr("Update Recommendations"),
-                    this, SLOT(UpdateRecommendations()));
+    context_menu_->addSeparator();
+    update_my_music_ = context_menu_->addAction(
+                IconLoader::Load("view-refresh"), tr("Update My Music"),
+                this, SLOT(UpdateMyMusic()));
+    update_recommendations_ = context_menu_->addAction(
+                IconLoader::Load("view-refresh"), tr("Update Recommendations"),
+                this, SLOT(UpdateRecommendations()));
 
-        context_menu_->addSeparator();
-        context_menu_->addAction(
-                    IconLoader::Load("configure"), tr("Configure Vk.com..."),
-                    this, SLOT(ShowConfig()));
-    }
+    context_menu_->addSeparator();
+    context_menu_->addAction(
+                IconLoader::Load("configure"), tr("Configure Vk.com..."),
+                this, SLOT(ShowConfig()));
 }
 
 void VkService::ShowContextMenu(const QPoint &global_pos)
 {
-    EnsureMenuCreated();
     const bool playable = model()->IsPlayable(model()->current_index());
 
     GetAppendToPlaylistAction()->setEnabled(playable);
@@ -384,6 +382,7 @@ void VkService::MyMusicLoaded(RequestID rid, const SongList &songs)
 
     if(rid.type() == UserAudio and rid.id() == 0) {
         update_my_music_->setEnabled(true);
+        disconnect(this, SLOT(MyMusicLoaded(RequestID,SongList)));
         ClearStandartItem(my_music_);
         AppendSongs(my_music_,songs);
     }
@@ -424,6 +423,9 @@ void VkService::MoreRecommendations()
     NewClosure(myAudio, SIGNAL(resultReady(QVariant)), this,
                SLOT(SongListRecived(RequestID,Vreen::AudioItemListReply*)),
                RequestID(UserRecomendations), myAudio);
+
+    connect(this, SIGNAL(SongListLoaded(RequestID,SongList)),
+            this, SLOT(RecommendationsLoaded(RequestID,SongList)));
 }
 
 void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
@@ -432,6 +434,7 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
 
     if(id.type() == UserRecomendations) {
         update_recommendations_->setEnabled(true);
+        disconnect(this, SLOT(RecommendationsLoaded(RequestID,SongList)));
         RemoveLastRow(recommendations_); // Last row is "Loading..."
         AppendSongs(recommendations_,songs);
         CreateAndAppendRow(recommendations_,Type_More);

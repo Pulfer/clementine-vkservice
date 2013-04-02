@@ -146,7 +146,7 @@ private:
     /* Interface */
     QStandardItem *CreateAndAppendRow(QStandardItem *parent, VkService::ItemType type);
     void ClearStandartItem(QStandardItem*item);
-    void EnsureMenuCreated();
+    void CreateMenu();
     QStandardItem* root_item_;
     QStandardItem* recommendations_;
     QStandardItem* my_music_;
