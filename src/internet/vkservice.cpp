@@ -48,7 +48,9 @@ VkService::VkService(Application *app, InternetModel *parent) :
     recommendations_(nullptr),
     my_music_(nullptr),
     search_(nullptr),
-    context_menu_(new QMenu),
+    context_menu_(nullptr),
+    update_my_music_(nullptr),
+    update_recommendations_(nullptr),
     search_box_(new SearchBoxWidget(this)),
     client_(new Vreen::Client),
     connection_(nullptr),
@@ -80,10 +82,6 @@ VkService::VkService(Application *app, InternetModel *parent) :
             SLOT(Error(Vreen::Client::Error)));
 
     /* Init interface */
-    context_menu_->addActions(GetPlaylistActions());
-    context_menu_->addAction(IconLoader::Load("configure"), tr("Configure Vk.com..."),
-                             this, SLOT(ShowConfig()));
-
     VkSearchProvider* search_provider = new VkSearchProvider(app_, this);
     search_provider->Init(this);
     app_->global_search()->AddProvider(search_provider);
@@ -128,12 +126,37 @@ void VkService::LazyPopulate(QStandardItem *parent)
     }
 }
 
+void VkService::EnsureMenuCreated()
+{
+    if(!context_menu_) {
+        context_menu_ = new QMenu;
+
+        context_menu_->addActions(GetPlaylistActions());
+
+        context_menu_->addSeparator();
+        update_my_music_ = context_menu_->addAction(
+                    IconLoader::Load("view-refresh"), tr("Update My Music"),
+                    this, SLOT(UpdateMyMusic()));
+        update_recommendations_ = context_menu_->addAction(
+                    IconLoader::Load("view-refresh"), tr("Update Recommendations"),
+                    this, SLOT(UpdateRecommendations()));
+
+        context_menu_->addSeparator();
+        context_menu_->addAction(
+                    IconLoader::Load("configure"), tr("Configure Vk.com..."),
+                    this, SLOT(ShowConfig()));
+    }
+}
+
 void VkService::ShowContextMenu(const QPoint &global_pos)
 {
+    EnsureMenuCreated();
     const bool playable = model()->IsPlayable(model()->current_index());
+
     GetAppendToPlaylistAction()->setEnabled(playable);
     GetReplacePlaylistAction()->setEnabled(playable);
     GetOpenInNewPlaylistAction()->setEnabled(playable);
+
     context_menu_->popup(global_pos);
 }
 
@@ -668,10 +691,6 @@ void VkService::ClearStandartItem(QStandardItem * item)
     if (item->hasChildren()) {
         item->removeRows(0, item->rowCount());
     }
-}
-
-void VkService::EnsureMenuCreated()
-{
 }
 
 bool VkService::WaitForReply(Vreen::Reply* reply) {

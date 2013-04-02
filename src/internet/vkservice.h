@@ -5,8 +5,6 @@
 #include "internetmodel.h"
 #include "core/song.h"
 
-#include <boost/scoped_ptr.hpp>
-
 #include "vreen/auth/oauthconnection.h"
 #include "vreen/audio.h"
 #include "vreen/contact.h"
@@ -109,8 +107,6 @@ public:
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
 
-    void UpdateMyMusic();
-    void UpdateRecommendations();
     void MoreRecommendations();
     Q_SLOT void Search(QString query);
     void MoreSearch();
@@ -135,6 +131,9 @@ private slots:
     void Error(Vreen::Client::Error error);
 
     /* Music */
+    void UpdateMyMusic();
+    void UpdateRecommendations();
+
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
     void SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply);
@@ -153,7 +152,12 @@ private:
     QStandardItem* my_music_;
     QStandardItem* search_;
     QVector<QStandardItem*> playlists_;
-    boost::scoped_ptr<QMenu> context_menu_;
+
+    QMenu* context_menu_;
+
+    QAction* update_my_music_;
+    QAction* update_recommendations_;
+
     SearchBoxWidget* search_box_;
 
     /* Connection */
