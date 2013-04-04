@@ -91,6 +91,7 @@ public:
     void LazyPopulate(QStandardItem *parent);
     void ShowContextMenu(const QPoint &global_pos);
     void ItemDoubleClicked(QStandardItem *item);
+    QList<QAction*> playlistitem_actions(const Song &song);
 
     /* Interface*/
     void RefreshRootSubitems();
@@ -133,6 +134,7 @@ private slots:
     /* Music */
     void UpdateMyMusic();
     void UpdateRecommendations();
+    void FindThisArtist();
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -157,6 +159,7 @@ private:
 
     QAction* update_my_music_;
     QAction* update_recommendations_;
+    QAction* find_this_artist_;
 
     SearchBoxWidget* search_box_;
 
@@ -164,6 +167,7 @@ private:
     Vreen::Client *client_;
     Vreen::OAuthConnection *connection_;
     bool hasAccount_;
+    int uid_;
     VkUrlHandler* url_handler_;
 
     /* Music */
@@ -172,6 +176,7 @@ private:
     // Using for prevent loading tardy result instead.
     uint last_search_id_;
     QString last_query_;
+    Song cur_song_;
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
 };

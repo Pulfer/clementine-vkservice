@@ -157,6 +157,10 @@ void VkService::CreateMenu()
                 IconLoader::Load("view-refresh"), tr("Update Recommendations"),
                 this, SLOT(UpdateRecommendations()));
 
+    find_this_artist_ = context_menu_->addAction(
+                QIcon(":vk/find.png"), tr("Find this artist"),
+                this, SLOT(FindThisArtist()));
+
     context_menu_->addSeparator();
     context_menu_->addAction(
                 IconLoader::Load("configure"), tr("Configure Vk.com..."),
@@ -175,7 +179,12 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
             item_type == Type_MyMusic or parent_type == Type_MyMusic;
     const bool is_recommend_item =
             item_type == Type_Recommendations or parent_type == Type_Recommendations;
+    const bool is_track =
+            item_type == InternetModel::Type_Track;
 
+    if (is_track) {
+        cur_song_ = current.data(InternetModel::Role_SongMetadata).value<Song>();
+    }
 
     GetAppendToPlaylistAction()->setEnabled(is_playable);
     GetReplacePlaylistAction()->setEnabled(is_playable);
@@ -183,7 +192,7 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
 
     update_my_music_->setVisible(is_my_music_item);
     update_recommendations_->setVisible(is_recommend_item);
-
+    find_this_artist_->setVisible(is_track);
 
     context_menu_->popup(global_pos);
 }
@@ -209,6 +218,16 @@ void VkService::ItemDoubleClicked(QStandardItem *item)
     default:
         qLog(Warning) << "Wrong item for double click with type:" << item->data(InternetModel::Role_Type);
     }
+}
+
+QList<QAction *> VkService::playlistitem_actions(const Song &song)
+{
+    cur_song_ = song;
+    QList<QAction *> actions;
+
+    find_this_artist_->setVisible(true);
+    actions << find_this_artist_;
+    return actions;
 }
 
 void VkService::ShowConfig()
@@ -455,6 +474,17 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
         AppendSongs(recommendations_,songs);
         CreateAndAppendRow(recommendations_,Type_More);
     }
+}
+
+
+
+/***
+ * Features
+ */
+
+void VkService::FindThisArtist()
+{
+    Search(cur_song_.artist());
 }
 
 
