@@ -15,6 +15,7 @@
 #include "core/player.h"
 #include "core/timeconstants.h"
 #include "ui/iconloader.h"
+#include "widgets/didyoumean.h"
 
 #include "globalsearch/globalsearch.h"
 #include "internetmodel.h"
@@ -484,7 +485,7 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
 
 void VkService::FindThisArtist()
 {
-    Search(cur_song_.artist());
+    search_box_->SetText(cur_song_.artist());
 }
 
 
