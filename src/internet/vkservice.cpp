@@ -70,6 +70,7 @@ VkService::VkService(Application *app, InternetModel *parent) :
     client_(new Vreen::Client),
     connection_(nullptr),
     hasAccount_(false),
+    uid_(0),
     url_handler_(new VkUrlHandler(this, this)),
     provider_(nullptr),
     last_search_id_(0)
@@ -84,8 +85,8 @@ VkService::VkService(Application *app, InternetModel *parent) :
     client_->setInvisible(true);
 
     QByteArray token = s.value("token",QByteArray()).toByteArray();
-    int uid = s.value("uid",0).toInt();
-    hasAccount_ = (uid != 0) and !token.isEmpty();
+    uid_ = s.value("uid",0).toInt();
+    hasAccount_ = (uid_ != 0) and !token.isEmpty();
 
     if (hasAccount_) {
         Login();
@@ -164,11 +165,25 @@ void VkService::CreateMenu()
 
 void VkService::ShowContextMenu(const QPoint &global_pos)
 {
-    const bool playable = model()->IsPlayable(model()->current_index());
+    QModelIndex current(model()->current_index());
 
-    GetAppendToPlaylistAction()->setEnabled(playable);
-    GetReplacePlaylistAction()->setEnabled(playable);
-    GetOpenInNewPlaylistAction()->setEnabled(playable);
+    const int item_type = current.data(InternetModel::Role_Type).toInt();
+    const int parent_type = current.parent().data(InternetModel::Role_Type).toInt();
+
+    const bool is_playable = model()->IsPlayable(current);
+    const bool is_my_music_item =
+            item_type == Type_MyMusic or parent_type == Type_MyMusic;
+    const bool is_recommend_item =
+            item_type == Type_Recommendations or parent_type == Type_Recommendations;
+
+
+    GetAppendToPlaylistAction()->setEnabled(is_playable);
+    GetReplacePlaylistAction()->setEnabled(is_playable);
+    GetOpenInNewPlaylistAction()->setEnabled(is_playable);
+
+    update_my_music_->setVisible(is_my_music_item);
+    update_recommendations_->setVisible(is_recommend_item);
+
 
     context_menu_->popup(global_pos);
 }
@@ -298,6 +313,7 @@ void VkService::ChangeUid(int uid)
     QSettings s;
     s.beginGroup(kSettingGroup);
     s.setValue("uid", uid);
+    uid_ = uid;
 }
 
 void VkService::OnlineStateChanged(bool online)
