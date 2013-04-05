@@ -150,6 +150,34 @@ IntReply *AudioProvider::getCount(int oid)
     return reply;
 }
 
+IntReply *AudioProvider::add(int aid, int oid, int gid)
+{
+    Q_D(AudioProvider);
+
+    QVariantMap args;
+    args.insert("aid", aid);
+    args.insert("oid", oid);
+
+    if (gid) {
+        args.insert("gid",gid);
+    }
+
+    auto reply = d->client->request<IntReply>("audio.add", args, ReplyPrivate::handleInt);
+    return reply;
+}
+
+IntReply *AudioProvider::remove(int aid, int oid)
+{
+    Q_D(AudioProvider);
+
+    QVariantMap args;
+    args.insert("aid", aid);
+    args.insert("oid", oid);
+
+    auto reply = d->client->request<IntReply>("audio.delete", args, ReplyPrivate::handleInt);
+    return reply;
+}
+
 AudioItemListReply *AudioProvider::getAudioByIds(const QString &ids)
 {
     Q_D(AudioProvider);

@@ -52,6 +52,31 @@ inline static void RemoveLastRow(QStandardItem* item){
     item->removeRow(item->rowCount() - 1);
 }
 
+struct SongId {
+    SongId()
+        : audio_id(0),
+          owner_id(0)
+    {}
+
+    int audio_id;
+    int owner_id;
+};
+
+inline static SongId ExtractIds(const QUrl &url) {
+    QString str = url.toString();
+    if (str.startsWith("vk://song/")) {
+        QStringList ids = str.remove("vk://song/").split('_');
+        if (ids.count() < 2) {
+            qLog(Warning) << "Wrong song url" << url;
+            return SongId();
+        }
+        SongId res;
+        res.owner_id = ids[0].toInt();
+        res.audio_id = ids[1].toInt();
+        return res;
+    }
+    return SongId();
+}
 
 
 /***
@@ -67,11 +92,14 @@ VkService::VkService(Application *app, InternetModel *parent) :
     context_menu_(nullptr),
     update_my_music_(nullptr),
     update_recommendations_(nullptr),
+    find_this_artist_(nullptr),
+    add_to_my_music_(nullptr),
+    remove_from_my_music_(nullptr),
     search_box_(new SearchBoxWidget(this)),
     client_(new Vreen::Client),
     connection_(nullptr),
     hasAccount_(false),
-    uid_(0),
+    my_id_(0),
     url_handler_(new VkUrlHandler(this, this)),
     provider_(nullptr),
     last_search_id_(0)
@@ -86,8 +114,8 @@ VkService::VkService(Application *app, InternetModel *parent) :
     client_->setInvisible(true);
 
     QByteArray token = s.value("token",QByteArray()).toByteArray();
-    uid_ = s.value("uid",0).toInt();
-    hasAccount_ = (uid_ != 0) and !token.isEmpty();
+    my_id_ = s.value("uid",0).toInt();
+    hasAccount_ = (my_id_ != 0) and !token.isEmpty();
 
     if (hasAccount_) {
         Login();
@@ -162,6 +190,14 @@ void VkService::CreateMenu()
                 QIcon(":vk/find.png"), tr("Find this artist"),
                 this, SLOT(FindThisArtist()));
 
+    add_to_my_music_ = context_menu_->addAction(
+                QIcon(":vk/add.png"), tr("Add to My Music"),
+                this, SLOT(AddToMyMusic()));
+
+    remove_from_my_music_ = context_menu_->addAction(
+                QIcon(":vk/remove.png"), tr("Remove from My Music"),
+                this, SLOT(RemoveFromMyMusic()));
+
     context_menu_->addSeparator();
     context_menu_->addAction(
                 IconLoader::Load("configure"), tr("Configure Vk.com..."),
@@ -183,8 +219,13 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     const bool is_track =
             item_type == InternetModel::Type_Track;
 
+    bool is_in_mymusic = false;
+
+
     if (is_track) {
         cur_song_ = current.data(InternetModel::Role_SongMetadata).value<Song>();
+        is_in_mymusic = is_my_music_item or
+                ExtractIds(cur_song_.url()).owner_id == my_id_;
     }
 
     GetAppendToPlaylistAction()->setEnabled(is_playable);
@@ -194,6 +235,8 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     update_my_music_->setVisible(is_my_music_item);
     update_recommendations_->setVisible(is_recommend_item);
     find_this_artist_->setVisible(is_track);
+    add_to_my_music_->setVisible(not is_in_mymusic);
+    remove_from_my_music_->setVisible(is_in_mymusic);
 
     context_menu_->popup(global_pos);
 }
@@ -228,6 +271,15 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
 
     find_this_artist_->setVisible(true);
     actions << find_this_artist_;
+
+    if (ExtractIds(cur_song_.url()).owner_id != my_id_) {
+        add_to_my_music_->setVisible(true);
+        actions << add_to_my_music_;
+    } else {
+        remove_from_my_music_->setVisible(true);
+        actions << remove_from_my_music_;
+    }
+
     return actions;
 }
 
@@ -333,7 +385,7 @@ void VkService::ChangeUid(int uid)
     QSettings s;
     s.beginGroup(kSettingGroup);
     s.setValue("uid", uid);
-    uid_ = uid;
+    my_id_ = uid;
 }
 
 void VkService::OnlineStateChanged(bool online)
@@ -486,6 +538,29 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
 void VkService::FindThisArtist()
 {
     search_box_->SetText(cur_song_.artist());
+}
+
+void VkService::AddToMyMusic()
+{
+    TRACE VAR(cur_song_.title());
+    SongId id = ExtractIds(cur_song_.url());
+    auto reply = provider_->add(id.audio_id,id.owner_id);
+    connect(reply, SIGNAL(resultReady(QVariant)),
+            this, SLOT(UpdateMyMusic()));
+}
+
+void VkService::RemoveFromMyMusic()
+{
+    TRACE VAR(cur_song_.title());
+    SongId id = ExtractIds(cur_song_.url());
+    if (id.owner_id == my_id_) {
+        auto reply = provider_->remove(id.audio_id,id.owner_id);
+        connect(reply, SIGNAL(resultReady(QVariant)),
+                this, SLOT(UpdateMyMusic()));
+    } else {
+        qLog(Warning) << "You tried delete not your (" << my_id_
+                      << ") song with url" << cur_song_.url();
+    }
 }
 
 

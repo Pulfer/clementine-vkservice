@@ -135,6 +135,8 @@ private slots:
     void UpdateMyMusic();
     void UpdateRecommendations();
     void FindThisArtist();
+    void AddToMyMusic();
+    void RemoveFromMyMusic();
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -160,6 +162,8 @@ private:
     QAction* update_my_music_;
     QAction* update_recommendations_;
     QAction* find_this_artist_;
+    QAction* add_to_my_music_;
+    QAction* remove_from_my_music_;
 
     SearchBoxWidget* search_box_;
 
@@ -167,7 +171,7 @@ private:
     Vreen::Client *client_;
     Vreen::OAuthConnection *connection_;
     bool hasAccount_;
-    int uid_;
+    int my_id_;
     VkUrlHandler* url_handler_;
 
     /* Music */
