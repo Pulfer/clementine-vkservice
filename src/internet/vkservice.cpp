@@ -452,7 +452,12 @@ void VkService::Error(Vreen::Client::Error error)
 
 void VkService::UpdateMyMusic()
 {
-    TRACE
+    TRACE;
+
+    if (not my_music_) {
+        // Internet services panel still not created.
+        return;
+    }
 
     ClearStandartItem(my_music_);
     CreateAndAppendRow(my_music_,Type_Loading);
@@ -829,7 +834,7 @@ void VkService::AppendSongs(QStandardItem *parent, const SongList &songs)
 
 void VkService::ClearStandartItem(QStandardItem * item)
 {
-    if (item->hasChildren()) {
+    if (item and item->hasChildren()) {
         item->removeRows(0, item->rowCount());
     }
 }
