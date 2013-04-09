@@ -55,13 +55,16 @@
      <property name="title">
       <string>Preferences</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QLabel" name="label">
           <property name="text">
            <string>Max global search results</string>
+          </property>
+          <property name="buddy">
+           <cstring>maxGlobalSearch</cstring>
           </property>
          </widget>
         </item>
@@ -94,6 +97,74 @@
        </layout>
       </item>
       <item>
+       <widget class="QCheckBox" name="enable_cashing">
+        <property name="text">
+         <string>Enable cashing</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="cashe_opts" native="true">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>Cashe path:</string>
+             </property>
+             <property name="buddy">
+              <cstring>cashe_dir</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="cashe_dir"/>
+           </item>
+           <item>
+            <widget class="QToolButton" name="choose_path">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QLabel" name="label_4">
+             <property name="text">
+              <string>File name pattern:</string>
+             </property>
+             <property name="buddy">
+              <cstring>cashe_filename</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="cashe_filename">
+             <property name="text">
+              <string>%artist - %title</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="reset">
+             <property name="text">
+              <string>Reset</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -114,5 +185,22 @@
  <resources>
   <include location="../../data/data.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>enable_cashing</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cashe_opts</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>176</x>
+     <y>149</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>204</x>
+     <y>168</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
