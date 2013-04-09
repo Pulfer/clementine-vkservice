@@ -15,6 +15,7 @@ public:
 
 private:
     VkService* service_;
+    QString CashedFileName(const QStringList &args);
 };
 
 #endif // VKURLHANDLER_H

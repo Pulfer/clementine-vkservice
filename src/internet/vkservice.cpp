@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include <QByteArray>
+#include <QDir>
 #include <QEventLoop>
 #include <QMenu>
 #include <QSettings>
@@ -65,7 +66,7 @@ struct SongId {
 inline static SongId ExtractIds(const QUrl &url) {
     QString str = url.toString();
     if (str.startsWith("vk://song/")) {
-        QStringList ids = str.remove("vk://song/").split('_');
+        QStringList ids = str.remove("vk://song/").section('/',0,0).split('_');
         if (ids.count() < 2) {
             qLog(Warning) << "Wrong song url" << url;
             return SongId();
@@ -699,9 +700,11 @@ SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
         song.set_artist(ClearString(item.artist()));
         song.set_length_nanosec(floor(item.duration() * kNsecPerSec));
 
-        QString url = QString("vk://song/%1_%2").
+        QString url = QString("vk://song/%1_%2/%3/%4").
                 arg(item.ownerId()).
-                arg(item.id());
+                arg(item.id()).
+                arg(item.artist().replace('/','_')).
+                arg(item.title().replace('/','_'));
 
         song.set_url(QUrl(url));
 
