@@ -66,7 +66,11 @@ struct SongId {
 inline static SongId ExtractIds(const QUrl &url) {
     QString str = url.toString();
     if (str.startsWith("vk://song/")) {
-        QStringList ids = str.remove("vk://song/").section('/',0,0).split('_');
+        QStringList ids =
+                str.remove("vk://song/")    // "<oid>_<aid>/<artist>/<title>"
+                .section('/',0,0)           // "<oid>_<aid>
+                .split('_');                // {"<oid>","<aid>"}
+
         if (ids.count() < 2) {
             qLog(Warning) << "Wrong song url" << url;
             return SongId();
@@ -666,6 +670,7 @@ void VkService::CountRecived(RequestID rid, Vreen::IntReply* reply)
     TRACE VAR(rid.id())
 
     int count = reply->result();
+    reply->deleteLater();
 
     auto myAudio = provider_->getContactAudio(0,count);
     NewClosure(myAudio, SIGNAL(resultReady(QVariant)), this,
@@ -677,6 +682,7 @@ void VkService::SongListRecived(RequestID rid, Vreen::AudioItemListReply* reply)
 {
     TRACE VAR(rid.id())
     SongList songs = FromAudioList(reply->result());
+    reply->deleteLater();
     emit SongListLoaded(rid, songs);
 }
 
@@ -755,6 +761,7 @@ void VkService::SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply
     TRACE VAR(id.id()) VAR(reply)
 
     SongList songs = FromAudioList(reply->result());
+    reply->deleteLater();
     emit SongSearchResult(id, songs);
 }
 
