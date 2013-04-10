@@ -1,6 +1,7 @@
 #include "vkurlhandler.h"
 
 #include <QDir>
+#include <QFile>
 
 #include "core/logging.h"
 
@@ -8,7 +9,8 @@
 
 VkUrlHandler::VkUrlHandler(VkService *service, QObject *parent)
     : UrlHandler(parent),
-      service_(service)
+      service_(service),
+      cashe_(new VkMusicCashe)
 {
 }
 
@@ -28,18 +30,42 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
         if (action == "song") {
             QSettings s;
-            s.beginGroup(VkService::kSettingGroup);
+            s.beginGroup(VkService::kSettingGroup);       
             bool cashing_enabled = s.value("enable_cashing",false).toBool();
+
+            QString cashed_filename = "";
             if (cashing_enabled) {
-                qLog(Debug) << CashedFileName(args);
+                cashed_filename = CashedFileName(args);
+                qLog(Debug) << "--- Cashed filename:" << cashed_filename;
+                if (cashe_->IsContain(cashed_filename)) {
+                    return LoadResult(url,LoadResult::TrackAvailable,
+                                      QUrl("file://"+cashed_filename));
+                }
             }
+
             QUrl media_url = service_->GetSongUrl(id);
+
+            if (cashing_enabled) {
+                cashe_->Add(cashed_filename,media_url);
+            }
+
             return LoadResult(url,LoadResult::TrackAvailable,media_url);
         } else {
             qLog(Error) << "Invalid vk.com url action:" << action;
         }
     }
     return LoadResult();
+}
+
+void VkUrlHandler::TrackSkipped()
+{
+    QSettings s;
+    s.beginGroup(VkService::kSettingGroup);
+    bool cashing_enabled = s.value("enable_cashing",false).toBool();
+
+    if (cashing_enabled) {
+        cashe_->BreakLastCashing();
+    }
 }
 
 QString VkUrlHandler::CashedFileName(const QStringList &args)
@@ -63,4 +89,131 @@ QString VkUrlHandler::CashedFileName(const QStringList &args)
         return "";
     }
     return cashe_path+'/'+cashe_filename+".mp3";
+}
+
+
+
+/***
+ *  VkMusicCashe realisation
+ */
+
+VkMusicCashe::VkMusicCashe(QObject *parent)
+    :QObject(parent),
+      is_downloading(false),
+      is_aborted(false),
+      file_(nullptr),
+      network_manager_(new QNetworkAccessManager),
+      reply_(nullptr)
+{
+
+}
+
+void VkMusicCashe::Do()
+{
+    if (is_downloading or queue_.isEmpty()) {
+        return;
+    } else {
+        is_downloading = true;
+        current_ = queue_.first();
+        queue_.pop_front();
+
+        // Check file path first
+
+        if (QFile::exists(current_.filename)) {
+            qLog(Warning) << "Tried to overwrite already cashed file.";
+            return;
+        }
+
+        if (file_) {
+            qLog(Warning) << "QFile" << file_->fileName() << "is not null";
+            delete file_;
+        }
+        file_ = new QFile(current_.filename);
+
+        if(!file_->open(QIODevice::WriteOnly))
+        {
+            qLog(Error) << "Unable to save the file" << current_.filename
+                        << ":" << file_->errorString();
+            delete file_;
+            file_ = NULL;
+            return;
+        }
+
+        // Start download
+        is_aborted = false;
+        reply_ = network_manager_->get(QNetworkRequest(current_.url));
+        connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
+        connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
+        connect(reply_,SIGNAL(downloadProgress(qint64,qint64)), SLOT(DownloadProgress(qint64,qint64)));
+
+        qLog(Info)<< "Next download" << current_.filename  << "from" << current_.url;
+    }
+}
+
+void VkMusicCashe::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+//    qLog(Info) << "Cashing" << bytesReceived << "\\" << bytesTotal << "of" << current_.url
+//               << "to" << current_.filename;
+}
+
+void VkMusicCashe::DownloadReadyToRead()
+{
+    if (file_) {
+        file_->write(reply_->readAll());
+    } else {
+        qLog(Warning) << "Tried to write recived song to not created file";
+    }
+}
+
+void VkMusicCashe::Downloaded()
+{
+    if (is_aborted) {
+        if (file_) {
+            file_->close();
+            file_->remove();
+        }
+    } else {
+        DownloadReadyToRead();
+        file_->flush();
+        file_->close();
+        if (reply_->error()) {
+            qLog(Error) << "Downloading failed" << reply_->errorString();
+        }
+    }
+
+    delete file_;
+    file_ = NULL;
+    reply_->deleteLater();
+    reply_ = NULL;
+
+    qLog() << "Cashed" << current_.filename;
+    is_downloading = false;
+    Do();
+}
+
+
+void VkMusicCashe::Add(const QString &cashed_filename, const QUrl &download_url)
+{
+    DownloadItem item;
+    item.filename = cashed_filename;
+    item.url = download_url;
+    queue_.push_back(item);
+    Do();
+}
+
+void VkMusicCashe::BreakLastCashing()
+{
+    if (queue_.length() > 0){
+        queue_.pop_back();
+    } else {
+        is_aborted = true;
+        if (reply_) {
+            reply_->abort();
+        }
+    }
+}
+
+bool VkMusicCashe::IsContain(const QString &cashed_filename)
+{
+    return QFile::exists(cashed_filename);;
 }
