@@ -37,6 +37,8 @@ public:
     static const char* kUrlScheme;
     static const uint  kApiKey;
     static const Scopes kScopes;
+    static const char* kDefCasheFilename;
+    static QString kDefCachePath();
 
     enum ItemType {        
         Type_Root = InternetModel::TypeCount,

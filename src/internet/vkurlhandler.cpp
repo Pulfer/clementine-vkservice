@@ -74,7 +74,7 @@ QString VkUrlHandler::CashedFileName(const QStringList &args)
     s.beginGroup(VkService::kSettingGroup);
     QString cashe_filename;
     if (args.size() == 4) {
-        cashe_filename = s.value("cashe_filename","%artist - %title").toString();
+        cashe_filename = s.value("cashe_filename",VkService::kDefCasheFilename).toString();
         cashe_filename.replace("%artist",args[2]);
         cashe_filename.replace("%title", args[3]);
     } else {
@@ -83,7 +83,7 @@ QString VkUrlHandler::CashedFileName(const QStringList &args)
         cashe_filename = args[1];
     }
 
-    QString cashe_path = s.value("cashe_path","").toString();
+    QString cashe_path = s.value("cashe_path",VkService::kDefCachePath()).toString();
     if (cashe_path.isEmpty()) {
         qLog(Warning) << "Empty cashe dir.";
         return "";
@@ -118,7 +118,13 @@ void VkMusicCashe::Do()
         queue_.pop_front();
 
         // Check file path first
+        QSettings s;
+        s.beginGroup(VkService::kSettingGroup);
+        QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
 
+        QDir(path).mkpath(QFileInfo(current_.filename).path());
+
+        // Check file existance and availability
         if (QFile::exists(current_.filename)) {
             qLog(Warning) << "Tried to overwrite already cashed file.";
             return;
@@ -139,7 +145,7 @@ void VkMusicCashe::Do()
             return;
         }
 
-        // Start download
+        // Start downloading
         is_aborted = false;
         reply_ = network_manager_->get(QNetworkRequest(current_.url));
         connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
@@ -171,6 +177,12 @@ void VkMusicCashe::Downloaded()
         if (file_) {
             file_->close();
             file_->remove();
+
+            QSettings s;
+            s.beginGroup(VkService::kSettingGroup);
+            QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
+
+            QDir(path).rmpath(QFileInfo(current_.filename).path());
         }
     } else {
         DownloadReadyToRead();
@@ -186,7 +198,7 @@ void VkMusicCashe::Downloaded()
     reply_->deleteLater();
     reply_ = NULL;
 
-    qLog() << "Cashed" << current_.filename;
+    qLog(Info) << "Cashed" << current_.filename;
     is_downloading = false;
     Do();
 }

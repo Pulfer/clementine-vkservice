@@ -37,9 +37,8 @@ void VkSettingsPage::Load()
 
     bool enable_cashing = s.value("enable_cashing", false).toBool();
     ui_->enable_cashing->setChecked(enable_cashing);
-    QString def_path = QDir::toNativeSeparators(QDir::homePath() + "/Vk Cashe");
-    ui_->cashe_dir->setText(s.value("cashe_path",def_path).toString());
-    ui_->cashe_filename->setText(s.value("cashe_filename","%artist - %title").toString());
+    ui_->cashe_dir->setText(s.value("cashe_path",VkService::kDefCachePath()).toString());
+    ui_->cashe_filename->setText(s.value("cashe_filename",VkService::kDefCasheFilename).toString());
 
     if (service_->HasAccount()) {
         Login();
@@ -111,6 +110,6 @@ void VkSettingsPage::CasheDirBrowse()
 
 void VkSettingsPage::ResetCasheFilenames()
 {
-    ui_->cashe_filename->setText("%artist - %title");
+    ui_->cashe_filename->setText(VkService::kDefCasheFilename);
 }
 

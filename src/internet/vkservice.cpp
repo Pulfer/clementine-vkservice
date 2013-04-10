@@ -41,6 +41,9 @@ const Scopes VkService::kScopes =
         Vreen::OAuthConnection::Friends |
         Vreen::OAuthConnection::Groups;
 
+const char* VkService::kDefCasheFilename = "%artist - %title";
+QString     VkService::kDefCachePath() {  return QDir::homePath()+"/Vk Cashe";}
+
 uint VkService::RequestID::last_id_ = 0;
 
 
