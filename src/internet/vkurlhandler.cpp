@@ -23,7 +23,8 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
     if (args.size() < 2) {
         qLog(Error) << "Invalid VK.com URL: " << url.toString()
-                    << "Url format should be vk://<source>/<id>. For example vk://song/2449621_77193878";
+                    << "Url format should be vk://<source>/<id>."
+                    << "For example vk://song/61145020_166946521/Daughtry/Gone Too Soon";
     } else {
         QString action = args[0];
         QString id = args[1];
@@ -33,14 +34,11 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
             s.beginGroup(VkService::kSettingGroup);       
             bool cashing_enabled = s.value("enable_cashing",false).toBool();
 
-            QString cashed_filename = "";
-            if (cashing_enabled) {
-                cashed_filename = CashedFileName(args);
-                qLog(Debug) << "--- Cashed filename:" << cashed_filename;
-                if (cashe_->IsContain(cashed_filename)) {
-                    return LoadResult(url,LoadResult::TrackAvailable,
-                                      QUrl("file://"+cashed_filename));
-                }
+            QString cashed_filename = CashedFileName(args);
+            if (cashe_->IsContain(cashed_filename)) {
+                qLog(Info) << "Using cashed file" << cashed_filename;
+                return LoadResult(url,LoadResult::TrackAvailable,
+                                  QUrl("file://"+cashed_filename));
             }
 
             QUrl media_url = service_->GetSongUrl(id);
