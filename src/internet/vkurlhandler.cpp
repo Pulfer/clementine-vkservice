@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QTemporaryFile>
 
 #include "core/logging.h"
 
@@ -83,10 +84,10 @@ QString VkUrlHandler::CashedFileName(const QStringList &args)
 
     QString cashe_path = s.value("cashe_path",VkService::kDefCachePath()).toString();
     if (cashe_path.isEmpty()) {
-        qLog(Warning) << "Empty cashe dir.";
+        qLog(Warning) << "Cashe dir not defined";
         return "";
     }
-    return cashe_path+'/'+cashe_filename+".mp3";
+    return cashe_path+'/'+cashe_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
 }
 
 
@@ -120,8 +121,6 @@ void VkMusicCashe::Do()
         s.beginGroup(VkService::kSettingGroup);
         QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
 
-        QDir(path).mkpath(QFileInfo(current_.filename).path());
-
         // Check file existance and availability
         if (QFile::exists(current_.filename)) {
             qLog(Warning) << "Tried to overwrite already cashed file.";
@@ -132,15 +131,11 @@ void VkMusicCashe::Do()
             qLog(Warning) << "QFile" << file_->fileName() << "is not null";
             delete file_;
         }
-        file_ = new QFile(current_.filename);
 
-        if(!file_->open(QIODevice::WriteOnly))
-        {
-            qLog(Error) << "Unable to save the file" << current_.filename
-                        << ":" << file_->errorString();
-            delete file_;
-            file_ = NULL;
-            return;
+        file_ = new QTemporaryFile;
+        if (!file_->open(QFile::WriteOnly)) {
+            qLog(Error) << "Can not create temporary file" << file_->fileName()
+                        << "Download right away to" << current_.filename;
         }
 
         // Start downloading
@@ -150,7 +145,7 @@ void VkMusicCashe::Do()
         connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
         connect(reply_,SIGNAL(downloadProgress(qint64,qint64)), SLOT(DownloadProgress(qint64,qint64)));
 
-        qLog(Info)<< "Next download" << current_.filename  << "from" << current_.url;
+        qLog(Info)<< "Start cashing" << current_.filename  << "from" << current_.url;
     }
 }
 
@@ -175,28 +170,28 @@ void VkMusicCashe::Downloaded()
         if (reply_->error()) {
             qLog(Error) << "Downloading failed" << reply_->errorString();
         }
-        if (file_) {
-            file_->close();
-            file_->remove();
-
-            QSettings s;
-            s.beginGroup(VkService::kSettingGroup);
-            QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
-
-            QDir(path).rmpath(QFileInfo(current_.filename).path());
-        }
     } else {
-        DownloadReadyToRead();
-        file_->flush();
-        file_->close();
+        DownloadReadyToRead(); // Save all recent recived data.
+
+        QSettings s;
+        s.beginGroup(VkService::kSettingGroup);
+        QString path =s.value("cashe_path",VkService::kDefCachePath()).toString();
+
+        QDir(path).mkpath(QFileInfo(current_.filename).path());
+        if (file_->copy(current_.filename)) {
+            qLog(Info) << "Cashed" << current_.filename;
+        } else {
+            qLog(Warning) << "Unable to save" << current_.filename
+                          << ":" << file_->errorString();
+        }
     }
 
     delete file_;
-    file_ = NULL;
-    reply_->deleteLater();
-    reply_ = NULL;
+    file_ = nullptr;
 
-    qLog(Info) << "Cashed" << current_.filename;
+    reply_->deleteLater();
+    reply_ = nullptr;
+
     is_downloading = false;
     Do();
 }
@@ -225,5 +220,5 @@ void VkMusicCashe::BreakLastCashing()
 
 bool VkMusicCashe::IsContain(const QString &cashed_filename)
 {
-    return QFile::exists(cashed_filename);;
+    return QFile::exists(cashed_filename);
 }

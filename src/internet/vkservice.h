@@ -11,6 +11,17 @@
 
 #include "vkurlhandler.h"
 
+/***
+ * TODO:
+ *  Cashing:
+ *      - Force (re)cashing any song.
+ *      - Using playing stream for caching.
+ *
+ *  User exp.:
+ *      - More faster way to add song to MyMusic.
+ *          Maybe use Last.fm Love button.
+ */
+
 #define  VAR(var) qLog(Debug) << ("---    where " #var " =") << (var);
 #define  TRACE qLog(Debug) << "--- " << __PRETTY_FUNCTION__ ;
 
