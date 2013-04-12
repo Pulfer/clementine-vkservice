@@ -171,7 +171,10 @@ void VkMusicCashe::DownloadReadyToRead()
 
 void VkMusicCashe::Downloaded()
 {
-    if (is_aborted) {
+    if (is_aborted or reply_->error()) {
+        if (reply_->error()) {
+            qLog(Error) << "Downloading failed" << reply_->errorString();
+        }
         if (file_) {
             file_->close();
             file_->remove();
@@ -186,9 +189,6 @@ void VkMusicCashe::Downloaded()
         DownloadReadyToRead();
         file_->flush();
         file_->close();
-        if (reply_->error()) {
-            qLog(Error) << "Downloading failed" << reply_->errorString();
-        }
     }
 
     delete file_;
