@@ -55,7 +55,7 @@ public:
     static const char* kUrlScheme;
     static const uint  kApiKey;
     static const Scopes kScopes;
-    static const char* kDefCasheFilename;
+    static const char* kDefCacheFilename;
     static QString kDefCachePath();
 
     enum ItemType {        
@@ -124,7 +124,7 @@ public:
     bool WaitForReply(Vreen::Reply *reply);
 
     /* Music */
-    QUrl GetSongUrl(QString song_id);
+    QUrl GetSongUrl(const QUrl &url);
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
 
@@ -157,7 +157,7 @@ private slots:
     void FindThisArtist();
     void AddToMyMusic();
     void RemoveFromMyMusic();
-    void AddToCashe();
+    void AddToCache();
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -185,7 +185,7 @@ private:
     QAction* find_this_artist_;
     QAction* add_to_my_music_;
     QAction* remove_from_my_music_;
-    QAction* add_song_to_cashe_;
+    QAction* add_song_to_cache_;
 
     SearchBoxWidget* search_box_;
 

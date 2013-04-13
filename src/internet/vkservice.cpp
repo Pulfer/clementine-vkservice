@@ -41,8 +41,8 @@ const Scopes VkService::kScopes =
         Vreen::OAuthConnection::Friends |
         Vreen::OAuthConnection::Groups;
 
-const char* VkService::kDefCasheFilename = "%artist - %title";
-QString     VkService::kDefCachePath() {  return QDir::homePath()+"/Vk Cashe";}
+const char* VkService::kDefCacheFilename = "%artist - %title";
+QString     VkService::kDefCachePath() {  return QDir::homePath()+"/Vk Cache";}
 
 uint VkService::RequestID::last_id_ = 0;
 
@@ -206,9 +206,9 @@ void VkService::CreateMenu()
                 QIcon(":vk/remove.png"), tr("Remove from My Music"),
                 this, SLOT(RemoveFromMyMusic()));
 
-    add_song_to_cashe_ = context_menu_->addAction(
-                QIcon(":vk/download.png"), tr("Add song to cashe"),
-                this, SLOT(AddToCashe()));
+    add_song_to_cache_ = context_menu_->addAction(
+                QIcon(":vk/download.png"), tr("Add song to cache"),
+                this, SLOT(AddToCache()));
 
     context_menu_->addSeparator();
     context_menu_->addAction(
@@ -247,7 +247,7 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     update_my_music_->setVisible(is_my_music_item);
     update_recommendations_->setVisible(is_recommend_item);
     find_this_artist_->setVisible(is_track);
-    add_song_to_cashe_->setVisible(is_track);
+    add_song_to_cache_->setVisible(is_track);
     add_to_my_music_->setVisible(is_track and not is_in_mymusic);
     remove_from_my_music_->setVisible(is_track and is_in_mymusic);
 
@@ -293,7 +293,7 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         actions << remove_from_my_music_;
     }
 
-    actions << add_song_to_cashe_;
+    actions << add_song_to_cache_;
 
     return actions;
 }
@@ -583,9 +583,9 @@ void VkService::RemoveFromMyMusic()
     }
 }
 
-void VkService::AddToCashe()
+void VkService::AddToCache()
 {
-    url_handler_->ForceAddToCashe(cur_song_.url());
+    url_handler_->ForceAddToCache(cur_song_.url());
 }
 
 
@@ -741,8 +741,16 @@ SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
  * Url handling
  */
 
-QUrl VkService::GetSongUrl(QString song_id)
+QUrl VkService::GetSongUrl(const QUrl &url)
 {
+    QString song_id;
+    if (url.toString().startsWith("vk://song/")) {
+        song_id =  url.toString().remove("vk://song/").section('/',0,0);
+    } else {
+        qLog(Error) << "Wrong song url" << url;
+        return QUrl();
+    }
+
     auto audioList = provider_->getAudioByIds(song_id);
     emit StopWaiting(); // Stop all previous requests.
     bool succ = WaitForReply(audioList);

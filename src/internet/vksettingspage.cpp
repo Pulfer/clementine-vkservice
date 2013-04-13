@@ -35,10 +35,10 @@ void VkSettingsPage::Load()
 
     ui_->maxGlobalSearch->setValue(s.value("maxSearchResult",100).toInt());
 
-    bool enable_cashing = s.value("enable_cashing", false).toBool();
-    ui_->enable_cashing->setChecked(enable_cashing);
-    ui_->cashe_dir->setText(s.value("cashe_path",VkService::kDefCachePath()).toString());
-    ui_->cashe_filename->setText(s.value("cashe_filename",VkService::kDefCasheFilename).toString());
+    bool enable_caching = s.value("enable_caching", false).toBool();
+    ui_->enable_caching->setChecked(enable_caching);
+    ui_->cache_dir->setText(s.value("cache_path",VkService::kDefCachePath()).toString());
+    ui_->cache_filename->setText(s.value("cache_filename",VkService::kDefCacheFilename).toString());
 
     if (service_->HasAccount()) {
         Login();
@@ -53,9 +53,9 @@ void VkSettingsPage::Save()
     s.beginGroup(VkService::kSettingGroup);
 
     s.setValue("maxSearchResult",ui_->maxGlobalSearch->value());
-    s.setValue("enable_cashing",ui_->enable_cashing->isChecked());
-    s.setValue("cashe_path",ui_->cashe_dir->text());
-    s.setValue("cashe_filename", ui_->cashe_filename->text());
+    s.setValue("enable_caching",ui_->enable_caching->isChecked());
+    s.setValue("cache_path",ui_->cache_dir->text());
+    s.setValue("cache_filename", ui_->cache_filename->text());
 }
 
 void VkSettingsPage::Login()
@@ -101,15 +101,15 @@ void VkSettingsPage::Logout()
 void VkSettingsPage::CasheDirBrowse()
 {
     QString directory = QFileDialog::getExistingDirectory(
-          this, tr("Choose Vk.com cashe directory"), ui_->cashe_dir->text());
+          this, tr("Choose Vk.com cashe directory"), ui_->cache_dir->text());
     if (directory.isEmpty())
       return;
 
-    ui_->cashe_dir->setText(QDir::toNativeSeparators(directory));
+    ui_->cache_dir->setText(QDir::toNativeSeparators(directory));
 }
 
 void VkSettingsPage::ResetCasheFilenames()
 {
-    ui_->cashe_filename->setText(VkService::kDefCasheFilename);
+    ui_->cache_filename->setText(VkService::kDefCacheFilename);
 }
 

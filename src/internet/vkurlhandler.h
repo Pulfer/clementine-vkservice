@@ -7,7 +7,7 @@
 #include <QNetworkReply>
 
 class VkService;
-class VkMusicCashe;
+class VkMusicCache;
 
 class VkUrlHandler : public UrlHandler
 {
@@ -17,26 +17,29 @@ public:
     QIcon icon() const { return QIcon(":providers/vk.png"); }
     LoadResult StartLoading(const QUrl &url);
     void TrackSkipped();
-    void ForceAddToCashe(const QUrl &url);
+    void ForceAddToCache(const QUrl &url);
 
 private:
     VkService* service_;
-    VkMusicCashe* cashe_;
-    QString CashedFileName(const QStringList &args);
+    VkMusicCache* songs_cache_;
 };
 
-class VkMusicCashe : public QObject
+class VkMusicCache : public QObject
 {
     Q_OBJECT
 public:
-    explicit VkMusicCashe(QObject *parent = 0);
-    ~VkMusicCashe() {}
-    void Add(const QString &cashed_filename, const QUrl &download_url);
-    void BreakLastCashing();
-    bool IsContain(const QString &cashed_filename);
+    explicit VkMusicCache(VkService* service, QObject *parent = 0);
+    ~VkMusicCache() {}
+    QUrl Get(const QUrl &url);
+    void ForceCache(const QUrl &url);
+    void BreakCurrentCaching();
 
 private slots:
-    void Do();
+    bool InCache(const QString &filename);
+
+    void AddToQueue(const QString &filename, const QUrl &download_url);
+
+    void DownloadNext();
     void DownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void DownloadReadyToRead();
     void Downloaded();
@@ -45,10 +48,22 @@ private:
     struct DownloadItem {
         QString filename;
         QUrl url;
+
+        bool operator ==(const DownloadItem &rhv) {
+            return filename == rhv.filename;
+        }
     };
 
+    QString CachedFilename(QUrl url);
+
+    VkService* service_;
+
     QList<DownloadItem> queue_;
-    DownloadItem current_;
+    // Contain index of current song in queue, need for removing if song was skipped.
+    // Is zero if song downloading now, and less that zero if current song not caching.
+    int current_cashing_index;
+
+    DownloadItem current_download;
     bool is_downloading;
     bool is_aborted;
 

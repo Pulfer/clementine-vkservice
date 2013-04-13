@@ -11,7 +11,7 @@
 VkUrlHandler::VkUrlHandler(VkService *service, QObject *parent)
     : UrlHandler(parent),
       service_(service),
-      cashe_(new VkMusicCashe)
+      songs_cache_(new VkMusicCache(service))
 {
 }
 
@@ -31,23 +31,7 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
         QString id = args[1];
 
         if (action == "song") {
-            QSettings s;
-            s.beginGroup(VkService::kSettingGroup);       
-            bool cashing_enabled = s.value("enable_cashing",false).toBool();
-
-            QString cashed_filename = CashedFileName(args);
-            if (cashe_->IsContain(cashed_filename)) {
-                qLog(Info) << "Using cashed file" << cashed_filename;
-                return LoadResult(url,LoadResult::TrackAvailable,
-                                  QUrl("file://"+cashed_filename));
-            }
-
-            QUrl media_url = service_->GetSongUrl(id);
-
-            if (cashing_enabled) {
-                cashe_->Add(cashed_filename,media_url);
-            }
-
+            QUrl media_url = songs_cache_->Get(url);
             return LoadResult(url,LoadResult::TrackAvailable,media_url);
         } else {
             qLog(Error) << "Invalid vk.com url action:" << action;
@@ -58,90 +42,108 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
 void VkUrlHandler::TrackSkipped()
 {
-    QSettings s;
-    s.beginGroup(VkService::kSettingGroup);
-    bool cashing_enabled = s.value("enable_cashing",false).toBool();
-
-    if (cashing_enabled) {
-        cashe_->BreakLastCashing();
-    }
+    songs_cache_->BreakCurrentCaching();
 }
 
-void VkUrlHandler::ForceAddToCashe(const QUrl &url)
+void VkUrlHandler::ForceAddToCache(const QUrl &url)
 {
-    qLog(Info) << "Force add to cashe" << url;
-    QStringList args = url.toString().remove("vk://").split("/");
-
-    QString cashed_filename = CashedFileName(args);
-    if (QFile::exists(cashed_filename)) {
-        QFile::remove(cashed_filename);
-    }
-
-    QUrl media_url = service_->GetSongUrl(args[1]);
-
-    cashe_->Add(cashed_filename, media_url);
-}
-
-QString VkUrlHandler::CashedFileName(const QStringList &args)
-{
-    QSettings s;
-    s.beginGroup(VkService::kSettingGroup);
-    QString cashe_filename;
-    if (args.size() == 4) {
-        cashe_filename = s.value("cashe_filename",VkService::kDefCasheFilename).toString();
-        cashe_filename.replace("%artist",args[2]);
-        cashe_filename.replace("%title", args[3]);
-    } else {
-        qLog(Warning) << "Song url with args" << args << "does not contain artist and title"
-                      << "use id as file name for cashe.";
-        cashe_filename = args[1];
-    }
-
-    QString cashe_path = s.value("cashe_path",VkService::kDefCachePath()).toString();
-    if (cashe_path.isEmpty()) {
-        qLog(Warning) << "Cashe dir not defined";
-        return "";
-    }
-    return cashe_path+'/'+cashe_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
+    songs_cache_->ForceCache(url);
 }
 
 
 
-/***
- *  VkMusicCashe realisation
+
+/******************************
+ *  VkMusiccache realisation  *
  */
 
-VkMusicCashe::VkMusicCashe(QObject *parent)
+VkMusicCache::VkMusicCache(VkService *service, QObject *parent)
     :QObject(parent),
+      service_(service),
+      current_cashing_index(0),
       is_downloading(false),
       is_aborted(false),
       file_(nullptr),
       network_manager_(new QNetworkAccessManager),
       reply_(nullptr)
 {
-
 }
 
-void VkMusicCashe::Do()
+QUrl VkMusicCache::Get(const QUrl &url)
+{
+    QString cached_filename = CachedFilename(url);
+    QUrl result;
+
+    if (InCache(cached_filename)) {
+        qLog(Info) << "Use cashed file" << cached_filename;
+        result = QUrl("file://" + cached_filename);
+    } else {
+        result = service_->GetSongUrl(url);
+        AddToQueue(cached_filename, result);
+        current_cashing_index = queue_.size();
+    }
+    return result;
+}
+
+
+void VkMusicCache::ForceCache(const QUrl &url)
+{
+    AddToQueue(CachedFilename(url), service_->GetSongUrl(url));
+}
+
+void VkMusicCache::BreakCurrentCaching()
+{
+    if (current_cashing_index > 0) {
+        // Current song in queue
+        queue_.removeAt(current_cashing_index - 1);
+    } else if (current_cashing_index == 0) {
+        // Current song is downloading
+        if (reply_) {
+            reply_->abort();
+            is_aborted = true;
+        }
+    }
+}
+
+/***
+ * Queue operations
+ */
+
+void VkMusicCache::AddToQueue(const QString &filename, const QUrl &download_url)
+{
+    DownloadItem item;
+    item.filename = filename;
+    item.url = download_url;
+    queue_.push_back(item);
+    DownloadNext();
+}
+
+
+
+/***
+ * Downloading
+ */
+
+void VkMusicCache::DownloadNext()
 {
     if (is_downloading or queue_.isEmpty()) {
         return;
     } else {
-        is_downloading = true;
-        current_ = queue_.first();
+        current_download = queue_.first();
         queue_.pop_front();
+        current_cashing_index--;
 
-        // Check file path first
+        // Check file path and file existance first
         QSettings s;
         s.beginGroup(VkService::kSettingGroup);
         QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
 
-        // Check file existance and availability
-        if (QFile::exists(current_.filename)) {
-            qLog(Warning) << "Tried to overwrite already cashed file.";
+        if (QFile::exists(current_download.filename)) {
+            qLog(Warning) << "Tried to overwrite already cached file" << current_download.filename;
             return;
         }
 
+        // Create temporarry file we download to.
         if (file_) {
             qLog(Warning) << "QFile" << file_->fileName() << "is not null";
             delete file_;
@@ -149,28 +151,29 @@ void VkMusicCashe::Do()
 
         file_ = new QTemporaryFile;
         if (!file_->open(QFile::WriteOnly)) {
-            qLog(Error) << "Can not create temporary file" << file_->fileName()
-                        << "Download right away to" << current_.filename;
+            qLog(Warning) << "Can not create temporary file" << file_->fileName()
+                          << "Download right away to" << current_download.filename;
         }
 
         // Start downloading
         is_aborted = false;
-        reply_ = network_manager_->get(QNetworkRequest(current_.url));
+        is_downloading = true;
+        reply_ = network_manager_->get(QNetworkRequest(current_download.url));
         connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
         connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
         connect(reply_,SIGNAL(downloadProgress(qint64,qint64)), SLOT(DownloadProgress(qint64,qint64)));
 
-        qLog(Info)<< "Start cashing" << current_.filename  << "from" << current_.url;
+        qLog(Info)<< "Start cashing" << current_download.filename  << "from" << current_download.url;
     }
 }
 
-void VkMusicCashe::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+void VkMusicCache::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
 //    qLog(Info) << "Cashing" << bytesReceived << "\\" << bytesTotal << "of" << current_.url
 //               << "to" << current_.filename;
 }
 
-void VkMusicCashe::DownloadReadyToRead()
+void VkMusicCache::DownloadReadyToRead()
 {
     if (file_) {
         file_->write(reply_->readAll());
@@ -179,7 +182,7 @@ void VkMusicCashe::DownloadReadyToRead()
     }
 }
 
-void VkMusicCashe::Downloaded()
+void VkMusicCache::Downloaded()
 {
     if (is_aborted or reply_->error()) {
         if (reply_->error()) {
@@ -190,14 +193,18 @@ void VkMusicCashe::Downloaded()
 
         QSettings s;
         s.beginGroup(VkService::kSettingGroup);
-        QString path =s.value("cashe_path",VkService::kDefCachePath()).toString();
+        QString path =s.value("cache_path",VkService::kDefCachePath()).toString();
 
-        QDir(path).mkpath(QFileInfo(current_.filename).path());
-        if (file_->copy(current_.filename)) {
-            qLog(Info) << "Cashed" << current_.filename;
+        if (file_->size()  >  0) {
+            QDir(path).mkpath(QFileInfo(current_download.filename).path());
+            if (file_->copy(current_download.filename)) {
+                qLog(Info) << "Cached" << current_download.filename;
+            } else {
+                qLog(Error) << "Unable to save" << current_download.filename
+                              << ":" << file_->errorString();
+            }
         } else {
-            qLog(Warning) << "Unable to save" << current_.filename
-                          << ":" << file_->errorString();
+            qLog(Error) << "File" << current_download.filename << "is empty";
         }
     }
 
@@ -208,32 +215,40 @@ void VkMusicCashe::Downloaded()
     reply_ = nullptr;
 
     is_downloading = false;
-    Do();
+    DownloadNext();
 }
 
+/***
+ * Utils
+ */
 
-void VkMusicCashe::Add(const QString &cashed_filename, const QUrl &download_url)
+inline bool VkMusicCache::InCache(const QString &filename)
 {
-    DownloadItem item;
-    item.filename = cashed_filename;
-    item.url = download_url;
-    queue_.push_back(item);
-    Do();
+    return QFile::exists(filename);
 }
 
-void VkMusicCashe::BreakLastCashing()
+QString VkMusicCache::CachedFilename(QUrl url)
 {
-    if (queue_.length() > 0){
-        queue_.pop_back();
+    QSettings s;
+    s.beginGroup(VkService::kSettingGroup);
+
+    QStringList args = url.toString().remove("vk://").split('/');
+
+    QString cache_filename;
+    if (args.size() == 4) {
+        cache_filename = s.value("cache_filename",VkService::kDefCacheFilename).toString();
+        cache_filename.replace("%artist",args[2]);
+        cache_filename.replace("%title", args[3]);
     } else {
-        is_aborted = true;
-        if (reply_) {
-            reply_->abort();
-        }
+        qLog(Warning) << "Song url with args" << args << "does not contain artist and title"
+                      << "use id as file name for cache.";
+        cache_filename = args[1];
     }
-}
 
-bool VkMusicCashe::IsContain(const QString &cashed_filename)
-{
-    return QFile::exists(cashed_filename);
+    QString cache_path = s.value("cache_path",VkService::kDefCachePath()).toString();
+    if (cache_path.isEmpty()) {
+        qLog(Warning) << "Cache dir not defined";
+        return "";
+    }
+    return cache_path+'/'+cache_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
 }

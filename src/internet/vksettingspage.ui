@@ -97,14 +97,14 @@
        </layout>
       </item>
       <item>
-       <widget class="QCheckBox" name="enable_cashing">
+       <widget class="QCheckBox" name="enable_caching">
         <property name="text">
          <string>Enable cashing</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QWidget" name="cashe_opts" native="true">
+       <widget class="QWidget" name="cache_opts" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
@@ -117,12 +117,12 @@
               <string>Cashe path:</string>
              </property>
              <property name="buddy">
-              <cstring>cashe_dir</cstring>
+              <cstring>cache_dir</cstring>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="cashe_dir"/>
+            <widget class="QLineEdit" name="cache_dir"/>
            </item>
            <item>
             <widget class="QToolButton" name="choose_path">
@@ -141,12 +141,12 @@
               <string>File name pattern:</string>
              </property>
              <property name="buddy">
-              <cstring>cashe_filename</cstring>
+              <cstring>cache_filename</cstring>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="cashe_filename">
+            <widget class="QLineEdit" name="cache_filename">
              <property name="text">
               <string>%artist - %title</string>
              </property>
@@ -187,9 +187,9 @@
  </resources>
  <connections>
   <connection>
-   <sender>enable_cashing</sender>
+   <sender>enable_caching</sender>
    <signal>toggled(bool)</signal>
-   <receiver>cashe_opts</receiver>
+   <receiver>cache_opts</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
