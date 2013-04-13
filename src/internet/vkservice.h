@@ -15,11 +15,18 @@
  * TODO:
  *  Cashing:
  *      - Force (re)cashing any song.
+ *      - Notify user about cashed file
  *      - Using playing stream for caching.
  *
  *  User exp.:
+ *      - Fix showing Add to MyMusic into wrong elements
  *      - More faster way to add song to MyMusic.
  *          Maybe use Last.fm Love button.
+ *      - Add copy share link actions
+ *
+ *  Groups:
+ *      - Realise search.
+ *      - Group radio.
  */
 
 #define  VAR(var) qLog(Debug) << ("---    where " #var " =") << (var);
@@ -150,6 +157,7 @@ private slots:
     void FindThisArtist();
     void AddToMyMusic();
     void RemoveFromMyMusic();
+    void AddToCashe();
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -177,6 +185,7 @@ private:
     QAction* find_this_artist_;
     QAction* add_to_my_music_;
     QAction* remove_from_my_music_;
+    QAction* add_song_to_cashe_;
 
     SearchBoxWidget* search_box_;
 

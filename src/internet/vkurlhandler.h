@@ -17,6 +17,7 @@ public:
     QIcon icon() const { return QIcon(":providers/vk.png"); }
     LoadResult StartLoading(const QUrl &url);
     void TrackSkipped();
+    void ForceAddToCashe(const QUrl &url);
 
 private:
     VkService* service_;

@@ -67,6 +67,21 @@ void VkUrlHandler::TrackSkipped()
     }
 }
 
+void VkUrlHandler::ForceAddToCashe(const QUrl &url)
+{
+    qLog(Info) << "Force add to cashe" << url;
+    QStringList args = url.toString().remove("vk://").split("/");
+
+    QString cashed_filename = CashedFileName(args);
+    if (QFile::exists(cashed_filename)) {
+        QFile::remove(cashed_filename);
+    }
+
+    QUrl media_url = service_->GetSongUrl(args[1]);
+
+    cashe_->Add(cashed_filename, media_url);
+}
+
 QString VkUrlHandler::CashedFileName(const QStringList &args)
 {
     QSettings s;

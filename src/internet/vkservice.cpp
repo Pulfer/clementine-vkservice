@@ -206,6 +206,10 @@ void VkService::CreateMenu()
                 QIcon(":vk/remove.png"), tr("Remove from My Music"),
                 this, SLOT(RemoveFromMyMusic()));
 
+    add_song_to_cashe_ = context_menu_->addAction(
+                QIcon(":vk/download.png"), tr("Add song to cashe"),
+                this, SLOT(AddToCashe()));
+
     context_menu_->addSeparator();
     context_menu_->addAction(
                 IconLoader::Load("configure"), tr("Configure Vk.com..."),
@@ -243,8 +247,9 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     update_my_music_->setVisible(is_my_music_item);
     update_recommendations_->setVisible(is_recommend_item);
     find_this_artist_->setVisible(is_track);
-    add_to_my_music_->setVisible(not is_in_mymusic);
-    remove_from_my_music_->setVisible(is_in_mymusic);
+    add_song_to_cashe_->setVisible(is_track);
+    add_to_my_music_->setVisible(is_track and not is_in_mymusic);
+    remove_from_my_music_->setVisible(is_track and is_in_mymusic);
 
     context_menu_->popup(global_pos);
 }
@@ -287,6 +292,8 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         remove_from_my_music_->setVisible(true);
         actions << remove_from_my_music_;
     }
+
+    actions << add_song_to_cashe_;
 
     return actions;
 }
@@ -574,6 +581,11 @@ void VkService::RemoveFromMyMusic()
         qLog(Warning) << "You tried delete not your (" << my_id_
                       << ") song with url" << cur_song_.url();
     }
+}
+
+void VkService::AddToCashe()
+{
+    url_handler_->ForceAddToCashe(cur_song_.url());
 }
 
 
