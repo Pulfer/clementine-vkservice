@@ -30,15 +30,12 @@ VkSettingsPage::~VkSettingsPage()
 
 void VkSettingsPage::Load()
 {
-    QSettings s;
-    s.beginGroup(VkService::kSettingGroup);
+    service_->UpdateSettings();
 
-    ui_->maxGlobalSearch->setValue(s.value("maxSearchResult",100).toInt());
-
-    bool enable_caching = s.value("enable_caching", false).toBool();
-    ui_->enable_caching->setChecked(enable_caching);
-    ui_->cache_dir->setText(s.value("cache_path",VkService::kDefCachePath()).toString());
-    ui_->cache_filename->setText(s.value("cache_filename",VkService::kDefCacheFilename).toString());
+    ui_->maxGlobalSearch->setValue(service_->maxGlobalSearch());
+    ui_->enable_caching->setChecked(service_->isCachingEnabled());
+    ui_->cache_dir->setText(service_->cacheDir());
+    ui_->cache_filename->setText(service_->cacheFilename());
 
     if (service_->HasAccount()) {
         Login();
@@ -52,10 +49,12 @@ void VkSettingsPage::Save()
     QSettings s;
     s.beginGroup(VkService::kSettingGroup);
 
-    s.setValue("maxSearchResult",ui_->maxGlobalSearch->value());
-    s.setValue("enable_caching",ui_->enable_caching->isChecked());
-    s.setValue("cache_path",ui_->cache_dir->text());
+    s.setValue("max_global_search",ui_->maxGlobalSearch->value());
+    s.setValue("cache_enabled",ui_->enable_caching->isChecked());
+    s.setValue("cache_dir",ui_->cache_dir->text());
     s.setValue("cache_filename", ui_->cache_filename->text());
+
+    service_->UpdateSettings();
 }
 
 void VkSettingsPage::Login()

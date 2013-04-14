@@ -42,7 +42,7 @@ const Scopes VkService::kScopes =
         Vreen::OAuthConnection::Groups;
 
 const char* VkService::kDefCacheFilename = "%artist - %title";
-QString     VkService::kDefCachePath() {  return QDir::homePath()+"/Vk Cache";}
+QString     VkService::kDefCacheDir() {  return QDir::homePath()+"/Vk Cache";}
 
 uint VkService::RequestID::last_id_ = 0;
 
@@ -143,6 +143,7 @@ VkService::VkService(Application *app, InternetModel *parent) :
     app_->player()->RegisterUrlHandler(url_handler_);
 
     connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(Search(QString)));
+    UpdateSettings();
 }
 
 VkService::~VkService()
@@ -863,6 +864,16 @@ void VkService::AppendSongs(QStandardItem *parent, const SongList &songs)
     foreach (auto song, songs) {
         parent->appendRow(CreateSongItem(song));
     }
+}
+
+void VkService::UpdateSettings()
+{
+    QSettings s;
+    s.beginGroup(kSettingGroup);
+    maxGlobalSearch_ = s.value("max_global_search",50).toInt();
+    cachingEnabled_ = s.value("cache_enabled", false).toBool();
+    cacheDir_ = s.value("cache_dir",kDefCacheDir()).toString();
+    cacheFilenamePattern_ = s.value("cache_filename", kDefCacheFilename).toString();
 }
 
 void VkService::ClearStandartItem(QStandardItem * item)

@@ -79,8 +79,11 @@ QUrl VkMusicCache::Get(const QUrl &url)
         result = QUrl("file://" + cached_filename);
     } else {
         result = service_->GetSongUrl(url);
-        AddToQueue(cached_filename, result);
-        current_cashing_index = queue_.size();
+
+        if (service_->isCachingEnabled()) {
+            AddToQueue(cached_filename, result);
+            current_cashing_index = queue_.size();
+        }
     }
     return result;
 }
@@ -134,10 +137,6 @@ void VkMusicCache::DownloadNext()
         current_cashing_index--;
 
         // Check file path and file existance first
-        QSettings s;
-        s.beginGroup(VkService::kSettingGroup);
-        QString path = s.value("cache_path",VkService::kDefCachePath()).toString();
-
         if (QFile::exists(current_download.filename)) {
             qLog(Warning) << "Tried to overwrite already cached file" << current_download.filename;
             return;
@@ -191,9 +190,8 @@ void VkMusicCache::Downloaded()
     } else {
         DownloadReadyToRead(); // Save all recent recived data.
 
-        QSettings s;
-        s.beginGroup(VkService::kSettingGroup);
-        QString path =s.value("cache_path",VkService::kDefCachePath()).toString();
+
+        QString path = service_->cacheDir();
 
         if (file_->size()  >  0) {
             QDir(path).mkpath(QFileInfo(current_download.filename).path());
@@ -229,14 +227,11 @@ inline bool VkMusicCache::InCache(const QString &filename)
 
 QString VkMusicCache::CachedFilename(QUrl url)
 {
-    QSettings s;
-    s.beginGroup(VkService::kSettingGroup);
-
     QStringList args = url.toString().remove("vk://").split('/');
 
     QString cache_filename;
     if (args.size() == 4) {
-        cache_filename = s.value("cache_filename",VkService::kDefCacheFilename).toString();
+        cache_filename = service_->cacheFilename();
         cache_filename.replace("%artist",args[2]);
         cache_filename.replace("%title", args[3]);
     } else {
@@ -245,10 +240,10 @@ QString VkMusicCache::CachedFilename(QUrl url)
         cache_filename = args[1];
     }
 
-    QString cache_path = s.value("cache_path",VkService::kDefCachePath()).toString();
-    if (cache_path.isEmpty()) {
+    QString cache_dir = service_->cacheDir();
+    if (cache_dir.isEmpty()) {
         qLog(Warning) << "Cache dir not defined";
         return "";
     }
-    return cache_path+'/'+cache_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
+    return cache_dir+'/'+cache_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
 }

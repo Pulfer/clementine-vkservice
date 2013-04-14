@@ -14,7 +14,6 @@
 /***
  * TODO:
  *  Cashing:
- *      - Force (re)cashing any song.
  *      - Notify user about cashed file
  *      - Using playing stream for caching.
  *
@@ -56,7 +55,7 @@ public:
     static const uint  kApiKey;
     static const Scopes kScopes;
     static const char* kDefCacheFilename;
-    static QString kDefCachePath();
+    static QString kDefCacheDir();
 
     enum ItemType {        
         Type_Root = InternetModel::TypeCount,
@@ -132,6 +131,13 @@ public:
     Q_SLOT void Search(QString query);
     void MoreSearch();
 
+    /* Settings */
+    void UpdateSettings();
+    int maxGlobalSearch() { return maxGlobalSearch_; }
+    bool isCachingEnabled() { return cachingEnabled_; }
+    QString cacheDir() { return cacheDir_; }
+    QString cacheFilename() { return cacheFilename_; }
+
 signals:
     void NameUpdated(QString name);
     void LoginSuccess(bool succ);
@@ -205,6 +211,13 @@ private:
     Song cur_song_;
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
+
+    /* Settings */
+    int maxGlobalSearch_;
+    bool cachingEnabled_;
+    QString cacheDir_;
+    QString cacheFilename_;
+
 };
 
 #endif // VKSERVICE_H
