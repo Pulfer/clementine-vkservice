@@ -66,6 +66,8 @@ private:
     DownloadItem current_download;
     bool is_downloading;
     bool is_aborted;
+    int task_id;
+
 
     QFile *file_;
 

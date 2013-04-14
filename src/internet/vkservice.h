@@ -14,7 +14,6 @@
 /***
  * TODO:
  *  Cashing:
- *      - Notify user about cashed file
  *      - Using playing stream for caching.
  *
  *  User exp.:
@@ -111,6 +110,7 @@ public:
     void ShowContextMenu(const QPoint &global_pos);
     void ItemDoubleClicked(QStandardItem *item);
     QList<QAction*> playlistitem_actions(const Song &song);
+    Application* app() { return app_; }
 
     /* Interface*/
     void RefreshRootSubitems();

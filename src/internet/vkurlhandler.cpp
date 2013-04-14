@@ -4,6 +4,8 @@
 #include <QFile>
 #include <QTemporaryFile>
 
+#include "core/application.h"
+#include "core/taskmanager.h"
 #include "core/logging.h"
 
 #include "vkservice.h"
@@ -157,6 +159,9 @@ void VkMusicCache::DownloadNext()
         // Start downloading
         is_aborted = false;
         is_downloading = true;
+        task_id = service_->app()->task_manager()->
+                StartTask(tr("Caching %1")
+                          .arg(QFileInfo(current_download.filename).baseName()));
         reply_ = network_manager_->get(QNetworkRequest(current_download.url));
         connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
         connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
@@ -168,8 +173,11 @@ void VkMusicCache::DownloadNext()
 
 void VkMusicCache::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
-//    qLog(Info) << "Cashing" << bytesReceived << "\\" << bytesTotal << "of" << current_.url
-//               << "to" << current_.filename;
+    if (bytesTotal) {
+        int progress = round(100 * bytesReceived / bytesTotal);
+        qDebug() << "Caching" << progress << current_download.filename;
+        service_->app()->task_manager()->SetTaskProgress(task_id,progress,100);
+    }
 }
 
 void VkMusicCache::DownloadReadyToRead()
@@ -183,6 +191,7 @@ void VkMusicCache::DownloadReadyToRead()
 
 void VkMusicCache::Downloaded()
 {
+    service_->app()->task_manager()->SetTaskFinished(task_id);
     if (is_aborted or reply_->error()) {
         if (reply_->error()) {
             qLog(Error) << "Downloading failed" << reply_->errorString();

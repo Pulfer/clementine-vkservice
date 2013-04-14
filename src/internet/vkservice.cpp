@@ -873,7 +873,7 @@ void VkService::UpdateSettings()
     maxGlobalSearch_ = s.value("max_global_search",50).toInt();
     cachingEnabled_ = s.value("cache_enabled", false).toBool();
     cacheDir_ = s.value("cache_dir",kDefCacheDir()).toString();
-    cacheFilenamePattern_ = s.value("cache_filename", kDefCacheFilename).toString();
+    cacheFilename_ = s.value("cache_filename", kDefCacheFilename).toString();
 }
 
 void VkService::ClearStandartItem(QStandardItem * item)
