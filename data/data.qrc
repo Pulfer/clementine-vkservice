@@ -381,5 +381,6 @@
         <file>vk/user.png</file>
         <file>vk/deactivated.gif</file>
         <file>providers/vk.png</file>
+        <file>vk/link.png</file>
     </qresource>
 </RCC>

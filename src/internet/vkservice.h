@@ -17,10 +17,8 @@
  *      - Using playing stream for caching.
  *
  *  User exp.:
- *      - Fix showing Add to MyMusic into wrong elements
  *      - More faster way to add song to MyMusic.
  *          Maybe use Last.fm Love button.
- *      - Add copy share link actions
  *
  *  Groups:
  *      - Realise search.
@@ -164,6 +162,7 @@ private slots:
     void AddToMyMusic();
     void RemoveFromMyMusic();
     void AddToCache();
+    void CopyShareUrl();
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -192,6 +191,7 @@ private:
     QAction* add_to_my_music_;
     QAction* remove_from_my_music_;
     QAction* add_song_to_cache_;
+    QAction* copy_share_url_;
 
     SearchBoxWidget* search_box_;
 

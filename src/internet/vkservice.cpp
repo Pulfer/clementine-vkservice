@@ -1,6 +1,8 @@
 #include <math.h>
 
+#include <QApplication>
 #include <QByteArray>
+#include <QClipboard>
 #include <QDir>
 #include <QEventLoop>
 #include <QMenu>
@@ -211,6 +213,10 @@ void VkService::CreateMenu()
                 QIcon(":vk/download.png"), tr("Add song to cache"),
                 this, SLOT(AddToCache()));
 
+    copy_share_url_ = context_menu_->addAction(
+                QIcon(":vk/link.png"), tr("Copy share url to clipboard"),
+                this, SLOT(CopyShareUrl()));
+
     context_menu_->addSeparator();
     context_menu_->addAction(
                 IconLoader::Load("configure"), tr("Configure Vk.com..."),
@@ -251,6 +257,7 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     add_song_to_cache_->setVisible(is_track);
     add_to_my_music_->setVisible(is_track and not is_in_mymusic);
     remove_from_my_music_->setVisible(is_track and is_in_mymusic);
+    copy_share_url_->setVisible(is_track);
 
     context_menu_->popup(global_pos);
 }
@@ -294,7 +301,8 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         actions << remove_from_my_music_;
     }
 
-    actions << add_song_to_cache_;
+    actions << copy_share_url_
+            << add_song_to_cache_;
 
     return actions;
 }
@@ -587,6 +595,15 @@ void VkService::RemoveFromMyMusic()
 void VkService::AddToCache()
 {
     url_handler_->ForceAddToCache(cur_song_.url());
+}
+
+void VkService::CopyShareUrl()
+{
+    QByteArray share_url("http://vk.com/audio?q=");
+    share_url += QUrl::toPercentEncoding(
+                QString(cur_song_.artist() + " " + cur_song_.title()));
+
+    QApplication::clipboard()->setText(share_url);
 }
 
 
