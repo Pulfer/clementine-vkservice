@@ -99,21 +99,21 @@
       <item>
        <widget class="QCheckBox" name="love_button_is_add_to_mymusic">
         <property name="text">
-         <string>Last.fm &quot;Love&quot; button also add song to My Music</string>
+         <string>Last.fm &quot;Love&quot; button also add song to My Music.</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QCheckBox" name="enable_caching">
         <property name="text">
-         <string>Enable cashing</string>
+         <string>Enable automatic cashing.</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QWidget" name="cache_opts" native="true">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
@@ -192,22 +192,5 @@
  <resources>
   <include location="../../data/data.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>enable_caching</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>cache_opts</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>202</x>
-     <y>187</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>230</x>
-     <y>275</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

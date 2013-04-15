@@ -16,10 +16,6 @@
  *  Cashing:
  *      - Using playing stream for caching.
  *
- *  User exp.:
- *      - More faster way to add song to MyMusic.
- *          Maybe use Last.fm Love button.
- *
  *  Groups:
  *      - Realise search.
  *      - Group radio.
