@@ -36,6 +36,7 @@ void VkSettingsPage::Load()
     ui_->enable_caching->setChecked(service_->isCachingEnabled());
     ui_->cache_dir->setText(service_->cacheDir());
     ui_->cache_filename->setText(service_->cacheFilename());
+    ui_->love_button_is_add_to_mymusic->setChecked(service_->isLoveAddToMyMusic());
 
     if (service_->HasAccount()) {
         Login();
@@ -53,6 +54,7 @@ void VkSettingsPage::Save()
     s.setValue("cache_enabled",ui_->enable_caching->isChecked());
     s.setValue("cache_dir",ui_->cache_dir->text());
     s.setValue("cache_filename", ui_->cache_filename->text());
+    s.setValue("love_is_add_to_my_music", ui_->love_button_is_add_to_mymusic->isChecked());
 
     service_->UpdateSettings();
 }

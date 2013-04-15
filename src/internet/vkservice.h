@@ -135,6 +135,7 @@ public:
     bool isCachingEnabled() { return cachingEnabled_; }
     QString cacheDir() { return cacheDir_; }
     QString cacheFilename() { return cacheFilename_; }
+    bool isLoveAddToMyMusic() { return love_is_add_to_mymusic_; }
 
 signals:
     void NameUpdated(QString name);
@@ -160,9 +161,12 @@ private slots:
     void UpdateRecommendations();
     void FindThisArtist();
     void AddToMyMusic();
+    void AddToMyMusicCurrent();
     void RemoveFromMyMusic();
     void AddToCache();
     void CopyShareUrl();
+
+    void SetCurrentSongUrl(const QUrl &url);
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
@@ -208,16 +212,17 @@ private:
     // Using for prevent loading tardy result instead.
     uint last_search_id_;
     QString last_query_;
-    Song cur_song_;
+    Song selected_song_; // Store for context menu actions.
+    QUrl current_song_url_; // Store for acctions with now plaing song.
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
 
     /* Settings */
     int maxGlobalSearch_;
     bool cachingEnabled_;
+    bool love_is_add_to_mymusic_;
     QString cacheDir_;
     QString cacheFilename_;
-
 };
 
 #endif // VKSERVICE_H

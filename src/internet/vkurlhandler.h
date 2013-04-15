@@ -11,6 +11,7 @@ class VkMusicCache;
 
 class VkUrlHandler : public UrlHandler
 {
+    Q_OBJECT
 public:
     VkUrlHandler(VkService* service, QObject *parent);
     QString scheme() const { return "vk"; }
@@ -19,10 +20,16 @@ public:
     void TrackSkipped();
     void ForceAddToCache(const QUrl &url);
 
+signals:
+    void CurrentSongChanged(const QUrl &); // Using for processing *Current actions
+
 private:
     VkService* service_;
     VkMusicCache* songs_cache_;
 };
+
+
+
 
 class VkMusicCache : public QObject
 {

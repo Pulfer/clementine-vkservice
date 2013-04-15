@@ -23,6 +23,7 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
     QStringList args = url.toString().remove("vk://").split("/");
 
+    emit CurrentSongChanged(url);
 
     if (args.size() < 2) {
         qLog(Error) << "Invalid VK.com URL: " << url.toString()

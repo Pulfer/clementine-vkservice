@@ -84,10 +84,27 @@ inline static SongId ExtractIds(const QUrl &url) {
         res.owner_id = ids[0].toInt();
         res.audio_id = ids[1].toInt();
         return res;
+    } else {
+        qLog(Error) << "Wromg song url" << url;
     }
     return SongId();
 }
 
+Song SongFromUrl(QUrl url) {
+    QString str = url.toString();
+    Song result;
+    if (str.startsWith("vk://song/")) {
+        QStringList ids = str.remove("vk://song/").split('/');
+        if (ids.size() == 3) {
+            result.set_artist(ids[1]);
+            result.set_title(ids[2]);
+        }
+        result.set_url(url);
+    } else {
+        qLog(Error) << "Wromg song url" << url;
+    }
+    return result;
+}
 
 /***
  * VkService realisation
@@ -138,13 +155,16 @@ VkService::VkService(Application *app, InternetModel *parent) :
 
     /* Init interface */
     CreateMenu();
+
     VkSearchProvider* search_provider = new VkSearchProvider(app_, this);
     search_provider->Init(this);
     app_->global_search()->AddProvider(search_provider);
+    connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(Search(QString)));
 
     app_->player()->RegisterUrlHandler(url_handler_);
+    connect(url_handler_, SIGNAL(CurrentSongChanged(QUrl)),
+            SLOT(SetCurrentSongUrl(QUrl)));
 
-    connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(Search(QString)));
     UpdateSettings();
 }
 
@@ -242,9 +262,9 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
 
 
     if (is_track) {
-        cur_song_ = current.data(InternetModel::Role_SongMetadata).value<Song>();
+        selected_song_ = current.data(InternetModel::Role_SongMetadata).value<Song>();
         is_in_mymusic = is_my_music_item or
-                ExtractIds(cur_song_.url()).owner_id == my_id_;
+                ExtractIds(selected_song_.url()).owner_id == my_id_;
     }
 
     GetAppendToPlaylistAction()->setEnabled(is_playable);
@@ -287,13 +307,13 @@ void VkService::ItemDoubleClicked(QStandardItem *item)
 
 QList<QAction *> VkService::playlistitem_actions(const Song &song)
 {
-    cur_song_ = song;
+    selected_song_ = song;
     QList<QAction *> actions;
 
     find_this_artist_->setVisible(true);
     actions << find_this_artist_;
 
-    if (ExtractIds(cur_song_.url()).owner_id != my_id_) {
+    if (ExtractIds(selected_song_.url()).owner_id != my_id_) {
         add_to_my_music_->setVisible(true);
         actions << add_to_my_music_;
     } else {
@@ -566,42 +586,50 @@ void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
 
 void VkService::FindThisArtist()
 {
-    search_box_->SetText(cur_song_.artist());
+    search_box_->SetText(selected_song_.artist());
 }
 
 void VkService::AddToMyMusic()
 {
-    TRACE VAR(cur_song_.title());
-    SongId id = ExtractIds(cur_song_.url());
+    TRACE VAR(selected_song_.title());
+    SongId id = ExtractIds(selected_song_.url());
     auto reply = provider_->add(id.audio_id,id.owner_id);
     connect(reply, SIGNAL(resultReady(QVariant)),
             this, SLOT(UpdateMyMusic()));
 }
 
+void VkService::AddToMyMusicCurrent()
+{
+    if (isLoveAddToMyMusic()) {
+        selected_song_ = SongFromUrl(current_song_url_);
+        AddToMyMusic();
+    }
+}
+
 void VkService::RemoveFromMyMusic()
 {
-    TRACE VAR(cur_song_.title());
-    SongId id = ExtractIds(cur_song_.url());
+    TRACE VAR(selected_song_.title());
+    SongId id = ExtractIds(selected_song_.url());
     if (id.owner_id == my_id_) {
         auto reply = provider_->remove(id.audio_id,id.owner_id);
         connect(reply, SIGNAL(resultReady(QVariant)),
                 this, SLOT(UpdateMyMusic()));
     } else {
         qLog(Warning) << "You tried delete not your (" << my_id_
-                      << ") song with url" << cur_song_.url();
+                      << ") song with url" << selected_song_.url();
     }
 }
 
 void VkService::AddToCache()
 {
-    url_handler_->ForceAddToCache(cur_song_.url());
+    url_handler_->ForceAddToCache(selected_song_.url());
 }
 
 void VkService::CopyShareUrl()
 {
     QByteArray share_url("http://vk.com/audio?q=");
     share_url += QUrl::toPercentEncoding(
-                QString(cur_song_.artist() + " " + cur_song_.title()));
+                QString(selected_song_.artist() + " " + selected_song_.title()));
 
     QApplication::clipboard()->setText(share_url);
 }
@@ -781,6 +809,11 @@ QUrl VkService::GetSongUrl(const QUrl &url)
     }
 }
 
+void VkService::SetCurrentSongUrl(const QUrl &url)
+{
+    current_song_url_ = url;
+}
+
 
 
 /***
@@ -891,6 +924,7 @@ void VkService::UpdateSettings()
     cachingEnabled_ = s.value("cache_enabled", false).toBool();
     cacheDir_ = s.value("cache_dir",kDefCacheDir()).toString();
     cacheFilename_ = s.value("cache_filename", kDefCacheFilename).toString();
+    love_is_add_to_mymusic_ = s.value("love_is_add_to_my_music",false).toBool();
 }
 
 void VkService::ClearStandartItem(QStandardItem * item)
