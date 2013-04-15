@@ -15,7 +15,10 @@
  * TODO:
  *  Cashing:
  *      - Using playing stream for caching.
- *
+ *          First version - return downloading filename to GStreamer.
+ *          But GStreamer will not wait untill the file will be downloaded, it's just skip.
+ *          Second version  - beforehand load next file, but it's not always possible
+ *          to predict correctly, for example if user start to play any song he want.
  *  Groups:
  *      - Realise search.
  *      - Group radio.

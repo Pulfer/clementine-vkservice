@@ -417,7 +417,6 @@ void VkService::Logout()
 
 void VkService::ChangeAccessToken(const QByteArray &token, time_t expiresIn)
 {
-    TRACE VAR(token)
     QSettings s;
     s.beginGroup(kSettingGroup);
     s.setValue("token", token);
@@ -496,8 +495,6 @@ void VkService::Error(Vreen::Client::Error error)
 
 void VkService::UpdateMyMusic()
 {
-    TRACE;
-
     if (not my_music_) {
         // Internet services panel still not created.
         return;
@@ -515,8 +512,6 @@ void VkService::UpdateMyMusic()
 
 void VkService::MyMusicLoaded(RequestID rid, const SongList &songs)
 {
-    TRACE VAR(rid.id()) VAR(rid.type()) VAR(&songs)
-
     if(rid.type() == UserAudio and rid.id() == 0) {
         update_my_music_->setEnabled(true);
         disconnect(this, SLOT(MyMusicLoaded(RequestID,SongList)));
@@ -533,8 +528,6 @@ void VkService::MyMusicLoaded(RequestID rid, const SongList &songs)
 
 void VkService::UpdateRecommendations()
 {
-    TRACE
-
     ClearStandartItem(recommendations_);
     CreateAndAppendRow(recommendations_,Type_Loading);
     update_recommendations_->setEnabled(false);
@@ -550,8 +543,6 @@ void VkService::UpdateRecommendations()
 
 void VkService::MoreRecommendations()
 {
-    TRACE
-
     RemoveLastRow(recommendations_); // Last row is "More"
     update_recommendations_->setEnabled(false);
     CreateAndAppendRow(recommendations_,Type_Loading);
@@ -567,8 +558,6 @@ void VkService::MoreRecommendations()
 
 void VkService::RecommendationsLoaded(RequestID id, const SongList &songs)
 {
-    TRACE VAR(id.id()) VAR(&songs)
-
     if(id.type() == UserRecomendations) {
         update_recommendations_->setEnabled(true);
         disconnect(this, SLOT(RecommendationsLoaded(RequestID,SongList)));
@@ -591,7 +580,6 @@ void VkService::FindThisArtist()
 
 void VkService::AddToMyMusic()
 {
-    TRACE VAR(selected_song_.title());
     SongId id = ExtractIds(selected_song_.url());
     auto reply = provider_->add(id.audio_id,id.owner_id);
     connect(reply, SIGNAL(resultReady(QVariant)),
@@ -608,7 +596,6 @@ void VkService::AddToMyMusicCurrent()
 
 void VkService::RemoveFromMyMusic()
 {
-    TRACE VAR(selected_song_.title());
     SongId id = ExtractIds(selected_song_.url());
     if (id.owner_id == my_id_) {
         auto reply = provider_->remove(id.audio_id,id.owner_id);
@@ -670,10 +657,6 @@ void VkService::MoreSearch()
 
 void VkService::SearchResultLoaded(RequestID rid, const SongList &songs)
 {
-    TRACE VAR(rid.id()) VAR(last_search_id_);
-
-    //TODO: Simplify.
-
     if (!search_) {
         return; // Result received when search is already over.
     }
@@ -710,8 +693,6 @@ void VkService::SearchResultLoaded(RequestID rid, const SongList &songs)
 
 void VkService::LoadSongList(uint uid, uint count)
 {
-    TRACE VAR(uid) VAR(count)
-
     if (count > 0) {
         auto myAudio = provider_->getContactAudio(uid,count);
         NewClosure(myAudio, SIGNAL(resultReady(QVariant)), this,
@@ -728,8 +709,6 @@ void VkService::LoadSongList(uint uid, uint count)
 
 void VkService::CountRecived(RequestID rid, Vreen::IntReply* reply)
 {
-    TRACE VAR(rid.id())
-
     int count = reply->result();
     reply->deleteLater();
 
@@ -741,7 +720,6 @@ void VkService::CountRecived(RequestID rid, Vreen::IntReply* reply)
 
 void VkService::SongListRecived(RequestID rid, Vreen::AudioItemListReply* reply)
 {
-    TRACE VAR(rid.id())
     SongList songs = FromAudioList(reply->result());
     reply->deleteLater();
     emit SongListLoaded(rid, songs);
@@ -758,8 +736,6 @@ static QString ClearString(QString str) {
 
 SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
 {
-    TRACE VAR(&list)
-
     Song song;
     SongList song_list;
     foreach (Vreen::AudioItem item, list) {
@@ -822,8 +798,6 @@ void VkService::SetCurrentSongUrl(const QUrl &url)
 
 void VkService::SongSearch(RequestID id, const QString &query, int count, int offset)
 {
-    TRACE VAR(query) VAR(count) VAR(offset);
-
     auto reply = provider_->searchAudio(query,count,offset,false,Vreen::AudioProvider::SortByPopularity);
     NewClosure(reply, SIGNAL(resultReady(QVariant)), this,
                SLOT(SongSearchRecived(RequestID,Vreen::AudioItemListReply*)),
@@ -832,8 +806,6 @@ void VkService::SongSearch(RequestID id, const QString &query, int count, int of
 
 void VkService::SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply)
 {
-    TRACE VAR(id.id()) VAR(reply)
-
     SongList songs = FromAudioList(reply->result());
     reply->deleteLater();
     emit SongSearchResult(id, songs);

@@ -61,14 +61,12 @@ void VkSettingsPage::Save()
 
 void VkSettingsPage::Login()
 {
-    qLog(Debug) << "Login clicked";
     ui_->account->setEnabled(false);
     service_->Login();
 }
 
 void VkSettingsPage::LoginSuccess(bool succ)
 {
-    qLog(Debug) << "LoginSuccess" << succ;
     if (succ) {
         ui_->login_button->setText("Logout");
 
@@ -86,7 +84,6 @@ void VkSettingsPage::LoginSuccess(bool succ)
 
 void VkSettingsPage::Logout()
 {
-    qLog(Debug) << "Logout clicked";
     service_->Logout();
 
     ui_->login_button->setText("Login");

@@ -19,8 +19,6 @@ VkUrlHandler::VkUrlHandler(VkService *service, QObject *parent)
 
 UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 {
-    TRACE VAR(url);
-
     QStringList args = url.toString().remove("vk://").split("/");
 
     emit CurrentSongChanged(url);
@@ -167,7 +165,6 @@ void VkMusicCache::DownloadNext()
         connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
         connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
         connect(reply_,SIGNAL(downloadProgress(qint64,qint64)), SLOT(DownloadProgress(qint64,qint64)));
-
         qLog(Info)<< "Start cashing" << current_download.filename  << "from" << current_download.url;
     }
 }
@@ -176,7 +173,6 @@ void VkMusicCache::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
     if (bytesTotal) {
         int progress = round(100 * bytesReceived / bytesTotal);
-        qDebug() << "Caching" << progress << current_download.filename;
         service_->app()->task_manager()->SetTaskProgress(task_id,progress,100);
     }
 }
