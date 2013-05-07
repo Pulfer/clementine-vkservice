@@ -7,6 +7,7 @@
 
 #include "vreen/auth/oauthconnection.h"
 #include "vreen/audio.h"
+#include "vreen/groupmanager.h"
 #include "vreen/contact.h"
 
 #include "vkurlhandler.h"
@@ -28,7 +29,6 @@
 #define  TRACE qLog(Debug) << "--- " << __PRETTY_FUNCTION__ ;
 
 typedef Vreen::OAuthConnection::Scopes Scopes;
-typedef uint GroupID;
 
 namespace Vreen {
 class Client;
@@ -123,6 +123,7 @@ public:
     QUrl GetSongUrl(const QUrl &url);
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
+    void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
 
     void MoreRecommendations();
     Q_SLOT void Search(QString query);
@@ -141,6 +142,7 @@ signals:
     void LoginSuccess(bool succ);
     void SongListLoaded(RequestID id, SongList songs);
     void SongSearchResult(RequestID id, const SongList &songs);
+    void GroupSearchResult(RequestID id, const Vreen::GroupItemList &groups);
     void StopWaiting();
     
 public slots:
@@ -170,6 +172,7 @@ private slots:
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
     void SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply);
+    void GroupSearchRecived(RequestID id, Vreen::GroupItemListReply* reply);
 
     void MyMusicLoaded(RequestID rid, const SongList &songs);
     void RecommendationsLoaded(RequestID id, const SongList &songs);
@@ -206,13 +209,14 @@ private:
     VkUrlHandler* url_handler_;
 
     /* Music */
-    Vreen::AudioProvider* provider_;
-    // Kept when more recent results recived.
+    Vreen::AudioProvider* audio_provider_;
+    Vreen::GroupManager* group_manager_;
+    // Keeping when more recent results recived.
     // Using for prevent loading tardy result instead.
     uint last_search_id_;
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
-    QUrl current_song_url_; // Store for acctions with now plaing song.
+    QUrl current_song_url_; // Store for actions with now plaing song.
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
 

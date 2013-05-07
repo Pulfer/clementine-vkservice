@@ -21,6 +21,8 @@ void VkSearchProvider::Init(VkService *service)
 
     connect(service_, SIGNAL(SongSearchResult(RequestID,SongList)),
             this, SLOT(SongSearchResult(RequestID,SongList)));
+    connect(service_, SIGNAL(GroupSearchResult(RequestID,Vreen::GroupItemList)),
+            this, SLOT(GroupSearchResult(RequestID,Vreen::GroupItemList)));
 
 }
 
@@ -34,8 +36,11 @@ void VkSearchProvider::SearchAsync(int id, const QString &query)
     int count = s.value("maxSearchResult",100).toInt();
 
     RequestID rid(VkService::GlobalSearch);
-    service_->SongSearch(rid, query,count,0);
+    songs_recived = false;
+    groups_recived = false;
     pending_searches_[rid.id()] = PendingState(id, TokenizeQuery(query));
+    service_->SongSearch(rid, query,count,0);
+    service_->GroupSearch(rid,query);
 }
 
 bool VkSearchProvider::IsLoggedIn()
@@ -52,39 +57,49 @@ void VkSearchProvider::SongSearchResult(VkService::RequestID rid, SongList songs
 {
     TRACE VAR(rid.id()) VAR(&songs);
 
-    // Map back to the original id.
     if (rid.type() == VkService::GlobalSearch) {
-        const PendingState state = pending_searches_.take(rid.id());
-        const int global_search_id = state.orig_id_;
-
         ClearSimilarSongs(songs);
-
         ResultList ret;
-
         foreach (const Song& song, songs) {
             Result result(this);
             result.metadata_ = song;
             ret << result;
         }
-
-        emit ResultsAvailable(global_search_id, ret);
-        MaybeSearchFinished(global_search_id);
+        qLog(Info) << "Found" << songs.count() << "songs.";
+        songs_recived = true;
+        const PendingState state = pending_searches_[rid.id()];
+        emit ResultsAvailable(state.orig_id_, ret);
+        MaybeSearchFinished(rid.id());
    }
 }
 
-void VkSearchProvider::GroupSearchResult(int id, const QVector<GroupID> &groups)
+void VkSearchProvider::GroupSearchResult(RequestID rid, Vreen::GroupItemList groups)
 {
-}
-
-void VkSearchProvider::GroupSongLoaded(GroupID id, SongList &songs)
-{
-    //NOTE: It;s realy needed
+    if (rid.type() == VkService::GlobalSearch) {
+        ResultList ret;
+        foreach (const Vreen::GroupItem& group, groups) {
+            Result result(this);
+            Song song;
+            song.set_title(group.name());
+            song.set_url(QUrl(QString("vk://group/%1").arg(group.gid())));
+            song.set_artist(" Groups");
+            result.metadata_ = song;
+            // result.group_automatically_ = false;
+            ret << result;
+        }
+        qLog(Info) << "Found" << groups.count() << "groups.";
+        groups_recived = true;
+        const PendingState state = pending_searches_[rid.id()];
+        emit ResultsAvailable(state.orig_id_, ret);
+        MaybeSearchFinished(rid.id());
+   }
 }
 
 void VkSearchProvider::MaybeSearchFinished(int id)
 {
-    if (pending_searches_.keys(PendingState(id, QStringList())).isEmpty()) {
-      emit SearchFinished(id);
+    if (pending_searches_.keys(PendingState(id, QStringList())).isEmpty() and songs_recived and groups_recived) {
+        const PendingState state = pending_searches_.take(id);
+        emit SearchFinished(state.orig_id_);
     }
 }
 

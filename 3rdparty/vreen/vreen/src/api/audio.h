@@ -56,8 +56,8 @@ public:
     AudioItemListReply *getRecommendationsForUser(int uid = 0, int count = 50, int offset = 0);
     AudioItemListReply *searchAudio(const QString& query, int count = 50, int offset = 0, bool autoComplete = true, Vreen::AudioProvider::SortOrder sort = SortByPopularity, bool withLyrics = false);
     IntReply *getCount(int oid = 0);
-    IntReply *add(int aid, int oid, int gid = 0);
-    IntReply *remove(int aid, int oid);
+    IntReply *addToLibrary(int aid, int oid, int gid = 0);
+    IntReply *removeFromLibrary(int aid, int oid);
 protected:
     QScopedPointer<AudioProviderPrivate> d_ptr;
 };

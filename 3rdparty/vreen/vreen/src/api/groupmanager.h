@@ -26,6 +26,8 @@
 #define VK_GROUPMANAGER_H
 
 #include "contact.h"
+#include "groupitem.h"
+
 #include <QObject>
 
 namespace Vreen {
@@ -34,16 +36,31 @@ class Client;
 class Group;
 class GroupManagerPrivate;
 
+typedef ReplyBase<GroupItemList> GroupItemListReply;
+
 class VK_SHARED_EXPORT GroupManager : public QObject
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(GroupManager)
+    Q_ENUMS(SortOrder)
 public:
+
+    enum SortOrder{
+        SortByUsers = 0,
+        SortByGrowingSpeed = 1,
+        SortByDayVisitsPerUser = 2,
+        SortByLikePerUser = 3,
+        SortByCommentPerUser = 4,
+        SortByThreadPerUser = 5
+    };
+
     explicit GroupManager(Client *client);
     virtual ~GroupManager();
     Client *client() const;
     Group *group(int gid) const;
     Group *group(int gid);
+    GroupItemListReply *searchGroups(const QString &query, SortOrder sort, int offset = 0, int count = 20);
+
 public slots:
     Reply *update(const IdList &ids, const QStringList &fields = QStringList() << VK_GROUP_FIELDS);
     Reply *update(const GroupList &groups, const QStringList &fields = QStringList() << VK_GROUP_FIELDS);

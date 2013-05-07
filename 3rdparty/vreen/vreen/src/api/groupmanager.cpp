@@ -61,6 +61,20 @@ Group *GroupManager::group(int gid) const
     return d_func()->groupHash.value(gid);
 }
 
+GroupItemListReply *GroupManager::searchGroups(const QString &query, GroupManager::SortOrder sort, int offset, int count)
+{
+
+    Q_D(GroupManager);
+    QVariantMap args;
+    args.insert("q", query);
+    args.insert("sort", static_cast<int>(sort));
+    args.insert("count", count);
+    args.insert("offset", offset);
+
+    auto reply = d->client->request<GroupItemListReply>("groups.search", args, GroupManagerPrivate::handleGroupList);
+    return reply;
+}
+
 Reply *GroupManager::update(const IdList &ids, const QStringList &fields)
 {
     Q_D(GroupManager);

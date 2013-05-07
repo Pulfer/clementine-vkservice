@@ -30,6 +30,8 @@
 #include "client.h"
 #include "contact.h"
 #include <QTimer>
+#include <QVariant>
+#include <QUrl>
 
 namespace Vreen {
 
@@ -56,6 +58,46 @@ public:
     void _q_update_finished(const QVariant &response);
     void _q_updater_handle();
     void appendToUpdaterQueue(Group *contact);
+
+    static QVariant handleGroupList(const QVariant &response) {
+        GroupItemList items;
+        auto list = response.toList();
+        if (!list.isEmpty() and list.first().canConvert<int>())
+            list.removeFirst(); // Remove count of search result
+
+        foreach (auto item, list) {
+            auto map = item.toMap();
+            GroupItem group;
+            group.setGid(map.value("gid").toInt());
+            group.setScreenName(map.value("screen_name").toString());
+            group.setName(map.value("name").toString());
+            group.setClosed(map.value("is_closed").toBool());
+            group.setAdmin(map.value("is_admin").toBool());
+            group.setMember(map.value("is_member").toBool());
+
+            QString type = map.value("type").toString();
+            if (type == "group") {
+                group.setType(GroupItem::Type_Group);
+            } else if (type == "page") {
+                group.setType(GroupItem::Type_Page);
+            } else if (type == "event") {
+                group.setType(GroupItem::Type_Event);
+            } else {
+                qDebug() << "Invalid vk group type" << type;
+            }
+
+            group.setPhoto(map.value("photo").toUrl(),
+                           Contact::PhotoSizeSmall);
+            group.setPhoto(map.value("photo_medium").toUrl(),
+                           Contact::PhotoSizeMedium);
+            group.setPhoto(map.value("photo_big").toUrl(),
+                           Contact::PhotoSizeBig);
+
+            items.append(group);
+        }
+
+        return QVariant::fromValue(items);
+    }
 };
 
 } //namespace Vreen

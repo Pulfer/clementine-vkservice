@@ -21,10 +21,11 @@ public:
     
 public slots:
     void SongSearchResult(RequestID rid, SongList songs);
-    void GroupSearchResult(int id, const QVector<GroupID>& groups);
-    void GroupSongLoaded(GroupID id, SongList& songs);
+    void GroupSearchResult(RequestID rid, Vreen::GroupItemList groups);
 
 private:
+    bool songs_recived;
+    bool groups_recived;
     void MaybeSearchFinished(int id);
     void ClearSimilarSongs(SongList &list);
     VkService* service_;

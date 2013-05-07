@@ -150,7 +150,7 @@ IntReply *AudioProvider::getCount(int oid)
     return reply;
 }
 
-IntReply *AudioProvider::add(int aid, int oid, int gid)
+IntReply *AudioProvider::addToLibrary(int aid, int oid, int gid)
 {
     Q_D(AudioProvider);
 
@@ -166,7 +166,7 @@ IntReply *AudioProvider::add(int aid, int oid, int gid)
     return reply;
 }
 
-IntReply *AudioProvider::remove(int aid, int oid)
+IntReply *AudioProvider::removeFromLibrary(int aid, int oid)
 {
     Q_D(AudioProvider);
 
