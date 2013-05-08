@@ -20,7 +20,8 @@
  *          Second version  - beforehand load next file, but it's not always possible
  *          to predict correctly, for example if user start to play any song he want.
  *  Groups:
- *      - Group radio.
+ *      - Fix radio skiping because of fast switching. (Or it's feauture?)
+ *      - Provide duration to slider
  */
 
 #define  VAR(var) qLog(Debug) << ("---    where " #var " =") << (var);
@@ -137,7 +138,9 @@ public:
     bool WaitForReply(Vreen::Reply *reply);
 
     /* Music */
-    QUrl GetSongUrl(const QUrl &url);
+    void SetCurrentSongFromUrl(const QUrl &url); // If song taked from cache, standard.
+    QUrl GetSongPlayUrl(const QUrl &url, bool is_playing = true);
+    QUrl GetGroupPlayUrl(const QUrl& url);
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
     void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
@@ -184,8 +187,6 @@ private slots:
     void RemoveFromMyMusic();
     void AddToCache();
     void CopyShareUrl();
-
-    void SetCurrentSongUrl(const QUrl &url);
 
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);

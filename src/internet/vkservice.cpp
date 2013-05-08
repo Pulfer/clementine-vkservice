@@ -162,8 +162,6 @@ VkService::VkService(Application *app, InternetModel *parent) :
     connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(Search(QString)));
 
     app_->player()->RegisterUrlHandler(url_handler_);
-    connect(url_handler_, SIGNAL(CurrentSongChanged(QUrl)),
-            SLOT(SetCurrentSongUrl(QUrl)));
 
     UpdateSettings();
 }
@@ -775,42 +773,24 @@ SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
  * Url handling
  */
 
-QUrl VkService::GetSongUrl(const QUrl &url)
+QUrl VkService::GetSongPlayUrl(const QUrl &url, bool is_playing)
 {
-    QString song_id;
+    QStringList tokens = url.toString().remove("vk://song/").split('/');
 
-    QStringList tokens = url.toString().remove("vk://").split('/');
     if (tokens.count() < 2) {
-        qLog(Error) << "Wrong url" << url; // TODO: Refactor this
+        qLog(Error) << "Wrong song url" << url;
         return QUrl();
     }
-    Vreen::AudioItemListReply *song_request;
 
-    if (tokens[0] == "song") {
-        song_id =  tokens[1];
-        song_request = audio_provider_->getAudiosByIds(song_id);
-
-    } else  if (tokens[0] == "group"){
-        if (tokens.count() < 3) {
-            qLog(Error) << "Wrong url" << url;
-            return QUrl();
-        }
-        int gid = tokens[1].toInt();
-        int songs_count = tokens[2].toInt();
-        song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
-
-    } else {
-        qLog(Error) << "Wrong url" << url;
-        return QUrl();
-    }
+    QString song_id =  tokens[0];
+    Vreen::AudioItemListReply *song_request = audio_provider_->getAudiosByIds(song_id);
 
     emit StopWaiting(); // Stop all previous requests.
     bool succ = WaitForReply(song_request);
+
     if (succ and not song_request->result().isEmpty()) {
          Vreen::AudioItem song = song_request->result()[0];
-         if (tokens[0] == "group") {
-             // FIX: Spagetty-code
-             current_group_url_ = url;
+         if (is_playing) {
              current_song_ = FromAudioItem(song);
          }
          return song.url();
@@ -820,12 +800,36 @@ QUrl VkService::GetSongUrl(const QUrl &url)
     }
 }
 
-void VkService::SetCurrentSongUrl(const QUrl &url)
+QUrl VkService::GetGroupPlayUrl(const QUrl &url)
+{
+    QStringList tokens = url.toString().remove("vk://group/").split('/');
+    if (tokens.count() < 2) {
+        qLog(Error) << "Wrong url" << url;
+        return QUrl();
+    }
+
+    int gid = tokens[0].toInt();
+    int songs_count = tokens[1].toInt();
+    Vreen::AudioItemListReply* song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
+
+    emit StopWaiting(); // Stop all previous requests.
+    bool succ = WaitForReply(song_request);
+
+    if (succ and not song_request->result().isEmpty()) {
+         Vreen::AudioItem song = song_request->result()[0];
+         current_group_url_ = url;
+         current_song_ = FromAudioItem(song);
+         return song.url();
+    } else {
+        qLog(Info) << "Unresolved group url" << url;
+        return QUrl();
+    }
+}
+
+void VkService::SetCurrentSongFromUrl(const QUrl &url)
 {
     current_song_ = SongFromUrl(url);
 }
-
-
 
 /***
  * Search

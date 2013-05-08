@@ -35,7 +35,7 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
         if (action == "song") {
             media_url = songs_cache_->Get(url);
         } else if (action == "group"){
-            media_url = service_->GetSongUrl(url);
+            media_url = service_->GetGroupPlayUrl(url);
         } else {
             qLog(Error) << "Invalid vk.com url action:" << action;
         }
@@ -90,7 +90,7 @@ QUrl VkMusicCache::Get(const QUrl &url)
         qLog(Info) << "Use cashed file" << cached_filename;
         result = QUrl("file://" + cached_filename);
     } else {
-        result = service_->GetSongUrl(url);
+        result = service_->GetSongPlayUrl(url, false);
 
         if (service_->isCachingEnabled()) {
             AddToQueue(cached_filename, result);
@@ -103,7 +103,7 @@ QUrl VkMusicCache::Get(const QUrl &url)
 
 void VkMusicCache::ForceCache(const QUrl &url)
 {
-    AddToQueue(CachedFilename(url), service_->GetSongUrl(url));
+    AddToQueue(CachedFilename(url), service_->GetSongPlayUrl(url));
 }
 
 void VkMusicCache::BreakCurrentCaching()
