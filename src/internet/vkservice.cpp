@@ -307,7 +307,16 @@ void VkService::ItemDoubleClicked(QStandardItem *item)
 
 QList<QAction *> VkService::playlistitem_actions(const Song &song)
 {
-    selected_song_ = song;
+    if (song.url().toString().startsWith("vk://song")) {
+        selected_song_ = song;
+    } else if (song.url() == current_group_url_) {
+         // If selected current group return current song
+        selected_song_ = current_song_;
+    } else {
+        // Otherwise no action avalible
+        return QList<QAction *>();
+    }
+
     QList<QAction *> actions;
 
     find_this_artist_->setVisible(true);
@@ -589,7 +598,7 @@ void VkService::AddToMyMusic()
 void VkService::AddToMyMusicCurrent()
 {
     if (isLoveAddToMyMusic()) {
-        selected_song_ = SongFromUrl(current_song_url_);
+        selected_song_ = current_song_;
         AddToMyMusic();
     }
 }
@@ -734,26 +743,29 @@ static QString ClearString(QString str) {
     return str;
 }
 
-SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
+Song VkService::FromAudioItem(const Vreen::AudioItem &item)
 {
     Song song;
+    song.set_title(ClearString(item.title()));
+    song.set_artist(ClearString(item.artist()));
+    song.set_length_nanosec(floor(item.duration() * kNsecPerSec));
+
+    QString url = QString("vk://song/%1_%2/%3/%4").
+            arg(item.ownerId()).
+            arg(item.id()).
+            arg(item.artist().replace('/','_')).
+            arg(item.title().replace('/','_'));
+
+    song.set_url(QUrl(url));
+    return song;
+}
+
+SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
+{
     SongList song_list;
     foreach (Vreen::AudioItem item, list) {
-        song.set_title(ClearString(item.title()));
-        song.set_artist(ClearString(item.artist()));
-        song.set_length_nanosec(floor(item.duration() * kNsecPerSec));
-
-        QString url = QString("vk://song/%1_%2/%3/%4").
-                arg(item.ownerId()).
-                arg(item.id()).
-                arg(item.artist().replace('/','_')).
-                arg(item.title().replace('/','_'));
-
-        song.set_url(QUrl(url));
-
-        song_list.append(song);
+        song_list.append(FromAudioItem(item));
     }
-
     return song_list;
 }
 
@@ -768,6 +780,10 @@ QUrl VkService::GetSongUrl(const QUrl &url)
     QString song_id;
 
     QStringList tokens = url.toString().remove("vk://").split('/');
+    if (tokens.count() < 2) {
+        qLog(Error) << "Wrong url" << url; // TODO: Refactor this
+        return QUrl();
+    }
     Vreen::AudioItemListReply *song_request;
 
     if (tokens[0] == "song") {
@@ -775,12 +791,16 @@ QUrl VkService::GetSongUrl(const QUrl &url)
         song_request = audio_provider_->getAudiosByIds(song_id);
 
     } else  if (tokens[0] == "group"){
+        if (tokens.count() < 3) {
+            qLog(Error) << "Wrong url" << url;
+            return QUrl();
+        }
         int gid = tokens[1].toInt();
         int songs_count = tokens[2].toInt();
         song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
 
     } else {
-        qLog(Error) << "Wrong song url" << url;
+        qLog(Error) << "Wrong url" << url;
         return QUrl();
     }
 
@@ -788,6 +808,11 @@ QUrl VkService::GetSongUrl(const QUrl &url)
     bool succ = WaitForReply(song_request);
     if (succ and not song_request->result().isEmpty()) {
          Vreen::AudioItem song = song_request->result()[0];
+         if (tokens[0] == "group") {
+             // FIX: Spagetty-code
+             current_group_url_ = url;
+             current_song_ = FromAudioItem(song);
+         }
          return song.url();
     } else {
         qLog(Info) << "Unresolved url by id" << song_id;
@@ -797,7 +822,7 @@ QUrl VkService::GetSongUrl(const QUrl &url)
 
 void VkService::SetCurrentSongUrl(const QUrl &url)
 {
-    current_song_url_ = url;
+    current_song_ = SongFromUrl(url);
 }
 
 
@@ -834,7 +859,7 @@ void VkService::GroupSearch(VkService::RequestID id, const QString &query, int c
 
 void VkService::GroupSearchRecived(VkService::RequestID id, Vreen::Reply *reply)
 {
-    QVariant groups = reply->response(); // WARNING: Result is empty, but response contain resul, why?
+    QVariant groups = reply->response();
     reply->deleteLater();
     emit GroupSearchResult(id, parseMusicOwnerList(groups));
 }

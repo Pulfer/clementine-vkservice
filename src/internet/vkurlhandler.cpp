@@ -54,6 +54,14 @@ void VkUrlHandler::ForceAddToCache(const QUrl &url)
     songs_cache_->ForceCache(url);
 }
 
+UrlHandler::LoadResult VkUrlHandler::LoadNext(const QUrl &url)
+{
+    if (url.toString().startsWith("vk://group"))
+        return StartLoading(url);
+    else
+        return LoadResult();
+}
+
 
 
 
