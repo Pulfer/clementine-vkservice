@@ -776,16 +776,8 @@ QUrl VkService::GetSongUrl(const QUrl &url)
 
     } else  if (tokens[0] == "group"){
         int gid = tokens[1].toInt();
-        auto audioCount = audio_provider_->getCount(-gid);
-        emit StopWaiting();
-        bool succ = WaitForReply(audioCount);
-        if (succ and audioCount->result() > 0) {
-            current_group_song_count_ = audioCount->result();
-            song_request = audio_provider_->getContactAudio(-gid,1,random() % current_group_song_count_);
-            qLog(Info) << url << "have" << current_group_song_count_ << "songs";
-        } else {
-            return QUrl();
-        }
+        int songs_count = tokens[2].toInt();
+        song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
 
     } else {
         qLog(Error) << "Wrong song url" << url;

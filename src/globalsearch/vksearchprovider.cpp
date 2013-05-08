@@ -80,7 +80,7 @@ void VkSearchProvider::GroupSearchResult(RequestID rid, const VkService::MusicOw
             Result result(this);
             Song song;
             song.set_title(tr("[%0] %1").arg(group.songs_count).arg(group.name));
-            song.set_url(QUrl(QString("vk://group/%1").arg(-group.id)));
+            song.set_url(QUrl(QString("vk://group/%1/%2").arg(-group.id).arg(group.songs_count)));
             song.set_artist(tr(" Group"));
             result.metadata_ = song;
             ret << result;

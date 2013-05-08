@@ -234,7 +234,6 @@ private:
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
     QUrl current_song_url_; // Store for actions with now plaing song.
-    int current_group_song_count_; // Store for group radio realisation;
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
 
