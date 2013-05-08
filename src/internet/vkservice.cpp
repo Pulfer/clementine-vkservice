@@ -129,7 +129,6 @@ VkService::VkService(Application *app, InternetModel *parent) :
     my_id_(0),
     url_handler_(new VkUrlHandler(this, this)),
     audio_provider_(nullptr),
-    group_manager_(nullptr),
     last_search_id_(0)
 {
     QSettings s;
@@ -137,7 +136,6 @@ VkService::VkService(Application *app, InternetModel *parent) :
 
     /* Init connection */
     audio_provider_ = new Vreen::AudioProvider(client_);
-    group_manager_ = new Vreen::GroupManager(client_);
 
     client_->setTrackMessages(false);
     client_->setInvisible(true);
@@ -768,18 +766,36 @@ SongList VkService::FromAudioList(const Vreen::AudioItemList &list)
 QUrl VkService::GetSongUrl(const QUrl &url)
 {
     QString song_id;
-    if (url.toString().startsWith("vk://song/")) {
-        song_id =  url.toString().remove("vk://song/").section('/',0,0);
+
+    QStringList tokens = url.toString().remove("vk://").split('/');
+    Vreen::AudioItemListReply *song_request;
+
+    if (tokens[0] == "song") {
+        song_id =  tokens[1];
+        song_request = audio_provider_->getAudiosByIds(song_id);
+
+    } else  if (tokens[0] == "group"){
+        int gid = tokens[1].toInt();
+        auto audioCount = audio_provider_->getCount(-gid);
+        emit StopWaiting();
+        bool succ = WaitForReply(audioCount);
+        if (succ and audioCount->result() > 0) {
+            current_group_song_count_ = audioCount->result();
+            song_request = audio_provider_->getContactAudio(-gid,1,random() % current_group_song_count_);
+            qLog(Info) << url << "have" << current_group_song_count_ << "songs";
+        } else {
+            return QUrl();
+        }
+
     } else {
         qLog(Error) << "Wrong song url" << url;
         return QUrl();
     }
 
-    auto audioList = audio_provider_->getAudioByIds(song_id);
     emit StopWaiting(); // Stop all previous requests.
-    bool succ = WaitForReply(audioList);
-    if (succ and not audioList->result().isEmpty()) {
-         Vreen::AudioItem song = audioList->result()[0];
+    bool succ = WaitForReply(song_request);
+    if (succ and not song_request->result().isEmpty()) {
+         Vreen::AudioItem song = song_request->result()[0];
          return song.url();
     } else {
         qLog(Info) << "Unresolved url by id" << song_id;
@@ -815,28 +831,20 @@ void VkService::SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply
 
 void VkService::GroupSearch(VkService::RequestID id, const QString &query, int count, int offset)
 {
-    auto reply = group_manager_->searchGroups(query,
-                                              Vreen::GroupManager::SortByDayVisitsPerUser,
-                                              count, offset);
+    QVariantMap args;
+    args.insert("q", query);
+    auto reply = client_->request("execute.searchMusicGroup",args);
+
     NewClosure(reply, SIGNAL(resultReady(QVariant)), this,
-               SLOT(GroupSearchRecived(RequestID,Vreen::GroupItemListReply*)),
+               SLOT(GroupSearchRecived(RequestID,Vreen::Reply*)),
                id, reply);
 }
 
-void VkService::GroupSearchRecived(VkService::RequestID id, Vreen::GroupItemListReply *reply)
+void VkService::GroupSearchRecived(VkService::RequestID id, Vreen::Reply *reply)
 {
-    Vreen::GroupItemList groups = reply->result();
+    QVariant groups = reply->response(); // WARNING: Result is empty, but response contain resul, why?
     reply->deleteLater();
-
-    // Remove closed foe user groups.
-    QMutableListIterator<Vreen::GroupItem> i(groups);
-    while (i.hasNext()) {
-        Vreen::GroupItem &group = i.next();
-        if (group.isClosed() and !group.isMember()) {
-            i.remove();
-        }
-    }
-    emit GroupSearchResult(id, groups);
+    emit GroupSearchResult(id, parseMusicOwnerList(groups));
 }
 
 /***
@@ -923,6 +931,7 @@ void VkService::UpdateSettings()
     cacheDir_ = s.value("cache_dir",kDefCacheDir()).toString();
     cacheFilename_ = s.value("cache_filename", kDefCacheFilename).toString();
     love_is_add_to_mymusic_ = s.value("love_is_add_to_my_music",false).toBool();
+    groups_in_global_search_ = s.value("groups_in_global_search", false).toBool();
 }
 
 void VkService::ClearStandartItem(QStandardItem * item)
@@ -946,4 +955,24 @@ bool VkService::WaitForReply(Vreen::Reply* reply) {
     }
     timeout_timer.stop();
     return true;
+}
+
+
+VkService::MusicOwnerList VkService::parseMusicOwnerList(const QVariant &request_result)
+{
+    auto list  = request_result.toList();
+    MusicOwnerList result;
+    foreach (auto item, list) {
+        auto map = item.toMap();
+        MusicOwner owner;
+        owner.songs_count = map.value("songs_count").toInt();
+        owner.id = map.value("id").toInt();
+        owner.name = map.value("name").toString();
+        owner.screen_name = map.value("screen_name").toString();
+        owner.photo = map.value("photo").toUrl();
+
+        result.append(owner);
+    }
+
+    return result;
 }

@@ -7,7 +7,6 @@
 
 #include "vreen/auth/oauthconnection.h"
 #include "vreen/audio.h"
-#include "vreen/groupmanager.h"
 #include "vreen/contact.h"
 
 #include "vkurlhandler.h"
@@ -21,7 +20,6 @@
  *          Second version  - beforehand load next file, but it's not always possible
  *          to predict correctly, for example if user start to play any song he want.
  *  Groups:
- *      - Realise search.
  *      - Group radio.
  */
 
@@ -101,6 +99,25 @@ public:
         RequestType type_;
     };
 
+    // User or group
+    struct MusicOwner
+    {
+    public:
+        MusicOwner() :
+            songs_count(0),
+            id(0)
+        {}
+        int songs_count;
+        int id; // if id > 0 is user otherwise id group
+        QString name;
+        QString screen_name; //name used in url for example: http://vk.com/shedward
+        QUrl photo;
+    };
+
+    typedef QList<MusicOwner> MusicOwnerList;
+
+    static MusicOwnerList parseMusicOwnerList(const QVariant &request_result);
+
     /* InternetService interface */
     QStandardItem* CreateRootItem();
     void LazyPopulate(QStandardItem *parent);
@@ -133,6 +150,7 @@ public:
     void UpdateSettings();
     int maxGlobalSearch() { return maxGlobalSearch_; }
     bool isCachingEnabled() { return cachingEnabled_; }
+    bool isGroupsInGlobalSearch() { return groups_in_global_search_; }
     QString cacheDir() { return cacheDir_; }
     QString cacheFilename() { return cacheFilename_; }
     bool isLoveAddToMyMusic() { return love_is_add_to_mymusic_; }
@@ -142,7 +160,7 @@ signals:
     void LoginSuccess(bool succ);
     void SongListLoaded(RequestID id, SongList songs);
     void SongSearchResult(RequestID id, const SongList &songs);
-    void GroupSearchResult(RequestID id, const Vreen::GroupItemList &groups);
+    void GroupSearchResult(RequestID id, const VkService::MusicOwnerList &groups);
     void StopWaiting();
     
 public slots:
@@ -172,7 +190,7 @@ private slots:
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
     void SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply);
-    void GroupSearchRecived(RequestID id, Vreen::GroupItemListReply* reply);
+    void GroupSearchRecived(RequestID id, Vreen::Reply *reply);
 
     void MyMusicLoaded(RequestID rid, const SongList &songs);
     void RecommendationsLoaded(RequestID id, const SongList &songs);
@@ -210,13 +228,13 @@ private:
 
     /* Music */
     Vreen::AudioProvider* audio_provider_;
-    Vreen::GroupManager* group_manager_;
     // Keeping when more recent results recived.
     // Using for prevent loading tardy result instead.
     uint last_search_id_;
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
     QUrl current_song_url_; // Store for actions with now plaing song.
+    int current_group_song_count_; // Store for group radio realisation;
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
 
@@ -224,6 +242,7 @@ private:
     int maxGlobalSearch_;
     bool cachingEnabled_;
     bool love_is_add_to_mymusic_;
+    bool groups_in_global_search_;
     QString cacheDir_;
     QString cacheFilename_;
 };

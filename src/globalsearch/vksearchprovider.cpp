@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "core/logging.h"
+#include "core/song.h"
 
 VkSearchProvider::VkSearchProvider(Application* app, QObject* parent) :
     SearchProvider(app,parent),
@@ -21,15 +22,13 @@ void VkSearchProvider::Init(VkService *service)
 
     connect(service_, SIGNAL(SongSearchResult(RequestID,SongList)),
             this, SLOT(SongSearchResult(RequestID,SongList)));
-    connect(service_, SIGNAL(GroupSearchResult(RequestID,Vreen::GroupItemList)),
-            this, SLOT(GroupSearchResult(RequestID,Vreen::GroupItemList)));
+    connect(service_, SIGNAL(GroupSearchResult(RequestID,VkService::MusicOwnerList)),
+            this, SLOT(GroupSearchResult(RequestID,VkService::MusicOwnerList)));
 
 }
 
 void VkSearchProvider::SearchAsync(int id, const QString &query)
 {
-    TRACE VAR(id) VAR(query);
-
     QSettings s;
     s.beginGroup(VkService::kSettingGroup);
 
@@ -40,7 +39,9 @@ void VkSearchProvider::SearchAsync(int id, const QString &query)
     groups_recived = false;
     pending_searches_[rid.id()] = PendingState(id, TokenizeQuery(query));
     service_->SongSearch(rid, query,count,0);
-    service_->GroupSearch(rid,query);
+    if (service_->isGroupsInGlobalSearch()){
+        service_->GroupSearch(rid,query);
+    }
 }
 
 bool VkSearchProvider::IsLoggedIn()
@@ -55,8 +56,6 @@ void VkSearchProvider::ShowConfig()
 
 void VkSearchProvider::SongSearchResult(VkService::RequestID rid, SongList songs)
 {
-    TRACE VAR(rid.id()) VAR(&songs);
-
     if (rid.type() == VkService::GlobalSearch) {
         ClearSimilarSongs(songs);
         ResultList ret;
@@ -73,18 +72,17 @@ void VkSearchProvider::SongSearchResult(VkService::RequestID rid, SongList songs
    }
 }
 
-void VkSearchProvider::GroupSearchResult(RequestID rid, Vreen::GroupItemList groups)
+void VkSearchProvider::GroupSearchResult(RequestID rid, const VkService::MusicOwnerList &groups)
 {
     if (rid.type() == VkService::GlobalSearch) {
         ResultList ret;
-        foreach (const Vreen::GroupItem& group, groups) {
+        foreach (const VkService::MusicOwner &group, groups) {
             Result result(this);
             Song song;
-            song.set_title(group.name());
-            song.set_url(QUrl(QString("vk://group/%1").arg(group.gid())));
-            song.set_artist(" Groups");
+            song.set_title(tr("[%0] %1").arg(group.songs_count).arg(group.name));
+            song.set_url(QUrl(QString("vk://group/%1").arg(-group.id)));
+            song.set_artist(tr(" Group"));
             result.metadata_ = song;
-            // result.group_automatically_ = false;
             ret << result;
         }
         qLog(Info) << "Found" << groups.count() << "groups.";

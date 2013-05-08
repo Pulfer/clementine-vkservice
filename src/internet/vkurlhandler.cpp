@@ -30,13 +30,16 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
     } else {
         QString action = args[0];
         QString id = args[1];
+        QUrl media_url;
 
         if (action == "song") {
-            QUrl media_url = songs_cache_->Get(url);
-            return LoadResult(url,LoadResult::TrackAvailable,media_url);
+            media_url = songs_cache_->Get(url);
+        } else if (action == "group"){
+            media_url = service_->GetSongUrl(url);
         } else {
             qLog(Error) << "Invalid vk.com url action:" << action;
         }
+        return LoadResult(url,LoadResult::TrackAvailable,media_url);
     }
     return LoadResult();
 }

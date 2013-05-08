@@ -37,6 +37,7 @@ void VkSettingsPage::Load()
     ui_->cache_dir->setText(service_->cacheDir());
     ui_->cache_filename->setText(service_->cacheFilename());
     ui_->love_button_is_add_to_mymusic->setChecked(service_->isLoveAddToMyMusic());
+    ui_->groups_in_global_search->setChecked(service_->isGroupsInGlobalSearch());
 
     if (service_->HasAccount()) {
         Login();
@@ -55,6 +56,7 @@ void VkSettingsPage::Save()
     s.setValue("cache_dir",ui_->cache_dir->text());
     s.setValue("cache_filename", ui_->cache_filename->text());
     s.setValue("love_is_add_to_my_music", ui_->love_button_is_add_to_mymusic->isChecked());
+    s.setValue("groups_in_global_search", ui_->groups_in_global_search->isChecked());
 
     service_->UpdateSettings();
 }

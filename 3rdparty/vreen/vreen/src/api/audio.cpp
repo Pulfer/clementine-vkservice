@@ -178,7 +178,7 @@ IntReply *AudioProvider::removeFromLibrary(int aid, int oid)
     return reply;
 }
 
-AudioItemListReply *AudioProvider::getAudioByIds(const QString &ids)
+AudioItemListReply *AudioProvider::getAudiosByIds(const QString &ids)
 {
     Q_D(AudioProvider);
 

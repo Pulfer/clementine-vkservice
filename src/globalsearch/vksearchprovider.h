@@ -21,7 +21,7 @@ public:
     
 public slots:
     void SongSearchResult(RequestID rid, SongList songs);
-    void GroupSearchResult(RequestID rid, Vreen::GroupItemList groups);
+    void GroupSearchResult(RequestID rid, const VkService::MusicOwnerList &groups);
 
 private:
     bool songs_recived;

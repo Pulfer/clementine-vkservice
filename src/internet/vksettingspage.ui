@@ -111,6 +111,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="groups_in_global_search">
+        <property name="text">
+         <string>Show groups ing slobal search result.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QWidget" name="cache_opts" native="true">
         <property name="enabled">
          <bool>true</bool>
