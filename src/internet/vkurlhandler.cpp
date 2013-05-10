@@ -21,8 +21,6 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 {
     QStringList args = url.toString().remove("vk://").split("/");
 
-    emit CurrentSongChanged(url);
-
     if (args.size() < 2) {
         qLog(Error) << "Invalid VK.com URL: " << url.toString()
                     << "Url format should be vk://<source>/<id>."
@@ -30,16 +28,14 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
     } else {
         QString action = args[0];
         QString id = args[1];
-        QUrl media_url;
 
         if (action == "song") {
-            media_url = songs_cache_->Get(url);
+            return LoadResult(url, LoadResult::TrackAvailable, songs_cache_->Get(url));
         } else if (action == "group"){
-            media_url = service_->GetGroupPlayUrl(url);
+            return service_->GetGroupPlayResult(url);
         } else {
             qLog(Error) << "Invalid vk.com url action:" << action;
         }
-        return LoadResult(url,LoadResult::TrackAvailable,media_url);
     }
     return LoadResult();
 }
@@ -206,7 +202,6 @@ void VkMusicCache::Downloaded()
         }
     } else {
         DownloadReadyToRead(); // Save all recent recived data.
-
 
         QString path = service_->cacheDir();
 

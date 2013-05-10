@@ -29,10 +29,7 @@ void VkSearchProvider::Init(VkService *service)
 
 void VkSearchProvider::SearchAsync(int id, const QString &query)
 {
-    QSettings s;
-    s.beginGroup(VkService::kSettingGroup);
-
-    int count = s.value("maxSearchResult",100).toInt();
+    int count = service_->maxGlobalSearch();
 
     RequestID rid(VkService::GlobalSearch);
     songs_recived = false;
@@ -79,7 +76,7 @@ void VkSearchProvider::GroupSearchResult(RequestID rid, const VkService::MusicOw
         foreach (const VkService::MusicOwner &group, groups) {
             Result result(this);
             Song song;
-            song.set_title(tr("[%0] %1").arg(group.songs_count).arg(group.name));
+            song.set_title(tr("%1 (%0 songs)").arg(group.songs_count).arg(group.name));
             song.set_url(QUrl(QString("vk://group/%1/%2").arg(-group.id).arg(group.songs_count)));
             song.set_artist(tr(" Group"));
             result.metadata_ = song;

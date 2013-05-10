@@ -21,9 +21,6 @@ public:
     void ForceAddToCache(const QUrl &url);
     LoadResult LoadNext(const QUrl &url);
 
-signals:
-    void CurrentSongChanged(const QUrl &); // Using for processing *Current actions
-
 private:
     VkService* service_;
     VkMusicCache* songs_cache_;
@@ -68,7 +65,7 @@ private:
 
     QList<DownloadItem> queue_;
     // Contain index of current song in queue, need for removing if song was skipped.
-    // Is zero if song downloading now, and less that zero if current song not caching.
+    // Is zero if song downloading now, and less that zero if current song not caching or cached.
     int current_cashing_index;
 
     DownloadItem current_download;

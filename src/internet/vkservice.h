@@ -138,15 +138,15 @@ public:
     bool WaitForReply(Vreen::Reply *reply);
 
     /* Music */
-    void SetCurrentSongFromUrl(const QUrl &url); // If song taked from cache, standard.
+    void SetCurrentSongFromUrl(const QUrl &url); // Used if song taked from cache.
     QUrl GetSongPlayUrl(const QUrl &url, bool is_playing = true);
-    QUrl GetGroupPlayUrl(const QUrl& url);
+    UrlHandler::LoadResult GetGroupPlayResult(const QUrl& url); // Return random song result from group playlist.
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
     void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
 
     void MoreRecommendations();
-    Q_SLOT void Search(QString query);
+    Q_SLOT void SearchSongs(QString query);
     void MoreSearch();
 
     /* Settings */

@@ -159,7 +159,7 @@ VkService::VkService(Application *app, InternetModel *parent) :
     VkSearchProvider* search_provider = new VkSearchProvider(app_, this);
     search_provider->Init(this);
     app_->global_search()->AddProvider(search_provider);
-    connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(Search(QString)));
+    connect(search_box_, SIGNAL(TextChanged(QString)), SLOT(SearchSongs(QString)));
 
     app_->player()->RegisterUrlHandler(url_handler_);
 
@@ -609,7 +609,7 @@ void VkService::RemoveFromMyMusic()
         connect(reply, SIGNAL(resultReady(QVariant)),
                 this, SLOT(UpdateMyMusic()));
     } else {
-        qLog(Warning) << "You tried delete not your (" << my_id_
+        qLog(Warning) << "You tried to delete not your (" << my_id_
                       << ") song with url" << selected_song_.url();
     }
 }
@@ -634,7 +634,7 @@ void VkService::CopyShareUrl()
  * Search
  */
 
-void VkService::Search(QString query)
+void VkService::SearchSongs(QString query)
 {
     if (query.isEmpty()) {
         root_item_->removeRow(search_->row());
@@ -800,16 +800,18 @@ QUrl VkService::GetSongPlayUrl(const QUrl &url, bool is_playing)
     }
 }
 
-QUrl VkService::GetGroupPlayUrl(const QUrl &url)
+UrlHandler::LoadResult VkService::GetGroupPlayResult(const QUrl &url)
 {
     QStringList tokens = url.toString().remove("vk://group/").split('/');
     if (tokens.count() < 2) {
         qLog(Error) << "Wrong url" << url;
-        return QUrl();
+        return UrlHandler::LoadResult();
     }
 
     int gid = tokens[0].toInt();
     int songs_count = tokens[1].toInt();
+
+    // Getting one random song from groups playlist.
     Vreen::AudioItemListReply* song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
 
     emit StopWaiting(); // Stop all previous requests.
@@ -819,10 +821,13 @@ QUrl VkService::GetGroupPlayUrl(const QUrl &url)
          Vreen::AudioItem song = song_request->result()[0];
          current_group_url_ = url;
          current_song_ = FromAudioItem(song);
-         return song.url();
+         return UrlHandler::LoadResult(url,
+                                       UrlHandler::LoadResult::TrackAvailable,
+                                       song.url(),
+                                       current_song_.length_nanosec());
     } else {
         qLog(Info) << "Unresolved group url" << url;
-        return QUrl();
+        return UrlHandler::LoadResult();
     }
 }
 
@@ -854,6 +859,33 @@ void VkService::GroupSearch(VkService::RequestID id, const QString &query, int c
 {
     QVariantMap args;
     args.insert("q", query);
+
+//    This is using of 'execute' method that execute this VKScript method on vk server:
+//    var groups = API.groups.search({"q": Args.q});
+//    if (groups.length == 0) {
+//        return [];
+//    }
+
+//    var i = 1;
+//    var res = [];
+//    while (i < groups.length - 1){
+//        i = i + 1;
+//        var grp = groups[i];
+//        var songs = API.audio.getCount({oid: -grp.gid});
+//        if ( songs > 1 &&
+//            (grp.is_closed == 0 || grp.is_member == 1))
+//        {
+//            res = res + [{"songs_count" : songs,
+//                            "id" : -grp.gid,
+//                            "name" : grp.name,
+//                            "screen_name" : grp.screen_name,
+//                            "photo": grp.photo}];
+//        }
+//    }
+//    return  res;
+//
+//    I leave it here just in case if my app will disappear or smth.
+
     auto reply = client_->request("execute.searchMusicGroup",args);
 
     NewClosure(reply, SIGNAL(resultReady(QVariant)), this,
