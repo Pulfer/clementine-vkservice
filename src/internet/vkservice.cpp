@@ -46,6 +46,8 @@ const Scopes VkService::kScopes =
 const char* VkService::kDefCacheFilename = "%artist - %title";
 QString     VkService::kDefCacheDir() {  return QDir::homePath()+"/Vk Cache";}
 
+const int VkService::kMaxVkSongList = 6000;
+
 uint VkService::RequestID::last_id_ = 0;
 
 
@@ -810,6 +812,10 @@ UrlHandler::LoadResult VkService::GetGroupPlayResult(const QUrl &url)
 
     int gid = tokens[0].toInt();
     int songs_count = tokens[1].toInt();
+
+    if (songs_count > kMaxVkSongList){
+        songs_count = kMaxVkSongList;
+    }
 
     // Getting one random song from groups playlist.
     Vreen::AudioItemListReply* song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);

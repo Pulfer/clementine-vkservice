@@ -18,10 +18,14 @@
  *          First version - return downloading filename to GStreamer.
  *          But GStreamer will not wait untill the file will be downloaded, it's just skip.
  *          Second version  - beforehand load next file, but it's not always possible
- *          to predict correctly, for example if user start to play any song he want.
+ *          to predict correctly, for example if user start to play any other song he want.
  *  Groups:
- *      - Fix radio skiping because of fast switching. (Or it's feauture?)
- *      - Provide duration to slider
+ *      - Groups can be bookmarked. Maybe store bookmarks in vk servers, for sync between platforms for same user.
+ *      - Maybe skip group radio if user press next before next song is received or any time out
+ *
+ *  Ui:
+ *      - Actions should work with multiple selected items in playlist,
+ *          for example if user want to add many songs to his library.
  */
 
 #define  VAR(var) qLog(Debug) << ("---    where " #var " =") << (var);
@@ -51,6 +55,7 @@ public:
     static const Scopes kScopes;
     static const char* kDefCacheFilename;
     static QString kDefCacheDir();
+    static const int kMaxVkSongList;
 
     enum ItemType {        
         Type_Root = InternetModel::TypeCount,
@@ -234,7 +239,7 @@ private:
     uint last_search_id_;
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
-    Song current_song_; // Store for actions with now plaing song.
+    Song current_song_; // Store for actions with now playing song.
     // Store current group song for actions with it.
     QUrl current_group_url_;
 
