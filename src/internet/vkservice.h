@@ -67,6 +67,7 @@ public:
 
         Type_Recommendations,
         Type_MyMusic,
+        Type_Bookmark,
 
         Type_Search
     };
@@ -106,23 +107,32 @@ public:
     };
 
     // User or group
-    struct MusicOwner
+    class MusicOwner
     {
     public:
         MusicOwner() :
             songs_count(0),
             id(0)
         {}
+
+        explicit MusicOwner(const Song &owner_radio);
+        Song toOwnerRadio() const;
+
+        static QList<MusicOwner> parseMusicOwnerList(const QVariant &request_result);
+
+    private:
+        friend QDataStream &operator <<(QDataStream &stream, const VkService::MusicOwner &val);
+        friend QDataStream &operator >>(QDataStream &stream, VkService::MusicOwner &val);
+        friend QDebug operator<< (QDebug d, const MusicOwner &owner);
+
         int songs_count;
         int id; // if id > 0 is user otherwise id group
         QString name;
-        QString screen_name; //name used in url for example: http://vk.com/shedward
+        QString screen_name; //name used in url http://vk.com/<screen_name> for example: http://vk.com/shedward
         QUrl photo;
     };
 
     typedef QList<MusicOwner> MusicOwnerList;
-
-    static MusicOwnerList parseMusicOwnerList(const QVariant &request_result);
 
     /* InternetService interface */
     QStandardItem* CreateRootItem();
@@ -145,7 +155,7 @@ public:
     /* Music */
     void SetCurrentSongFromUrl(const QUrl &url); // Used if song taked from cache.
     QUrl GetSongPlayUrl(const QUrl &url, bool is_playing = true);
-    UrlHandler::LoadResult GetGroupPlayResult(const QUrl& url); // Return random song result from group playlist.
+    UrlHandler::LoadResult GetGroupNextSongUrl(const QUrl& url); // Return random song result from group playlist.
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
     void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
@@ -193,6 +203,9 @@ private slots:
     void AddToCache();
     void CopyShareUrl();
 
+    void AddToBookmarks();
+    void RemoveFromBookmark();
+
     void SongListRecived(RequestID rid, Vreen::AudioItemListReply *reply);
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
     void SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply);
@@ -211,7 +224,6 @@ private:
     QStandardItem* recommendations_;
     QStandardItem* my_music_;
     QStandardItem* search_;
-    QVector<QStandardItem*> playlists_;
 
     QMenu* context_menu_;
 
@@ -222,6 +234,8 @@ private:
     QAction* remove_from_my_music_;
     QAction* add_song_to_cache_;
     QAction* copy_share_url_;
+    QAction* add_to_bookmarks_;
+    QAction* remove_from_bookmarks_;
 
     SearchBoxWidget* search_box_;
 
@@ -240,12 +254,16 @@ private:
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
     Song current_song_; // Store for actions with now playing song.
-    // Store current group song for actions with it.
+    // Store current group url for actions with it.
     QUrl current_group_url_;
 
     Song FromAudioItem(const Vreen::AudioItem &item);
     SongList FromAudioList(const Vreen::AudioItemList &list);
     void AppendSongs(QStandardItem *parent, const SongList &songs);
+    QStandardItem *AppendBookmarkFromRadio(QStandardItem *parent, const Song &owner_radio);
+
+    void SaveBookmarks();
+    void LoadBookmarks();
 
     /* Settings */
     int maxGlobalSearch_;
@@ -255,5 +273,11 @@ private:
     QString cacheDir_;
     QString cacheFilename_;
 };
+
+Q_DECLARE_METATYPE(VkService::MusicOwner)
+
+QDataStream& operator<<(QDataStream & stream, const VkService::MusicOwner & pen);
+QDataStream& operator>>(QDataStream & stream, VkService::MusicOwner & pen);
+QDebug operator<< (QDebug d, const VkService::MusicOwner &owner);
 
 #endif // VKSERVICE_H

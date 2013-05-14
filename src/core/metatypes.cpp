@@ -16,6 +16,10 @@
 #include "podcasts/podcast.h"
 #include "ui/equalizer.h"
 
+#ifdef HAVE_VK
+#include "internet/vkservice.h"
+#endif
+
 #ifdef HAVE_DBUS
 #include <QDBusMetaType>
 #include "core/mpris2.h"
@@ -70,6 +74,11 @@ void RegisterMetaTypes() {
   qRegisterMetaTypeStreamOperators<SomaFMService::Stream>("SomaFMService::Stream");
   qRegisterMetaType<SubdirectoryList>("SubdirectoryList");
   qRegisterMetaType<Subdirectory>("Subdirectory");
+
+#ifdef HAVE_VK
+  qRegisterMetaType<VkService::MusicOwner>("VkService::MusicOwner");
+  qRegisterMetaTypeStreamOperators<VkService::MusicOwner>("VkService::MusicOwner");
+#endif
 
 #ifdef HAVE_DBUS
   qDBusRegisterMetaType<QImage>();

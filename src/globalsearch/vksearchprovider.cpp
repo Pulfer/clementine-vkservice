@@ -75,11 +75,7 @@ void VkSearchProvider::GroupSearchResult(RequestID rid, const VkService::MusicOw
         ResultList ret;
         foreach (const VkService::MusicOwner &group, groups) {
             Result result(this);
-            Song song;
-            song.set_title(tr("%1 (%0 songs)").arg(group.songs_count).arg(group.name));
-            song.set_url(QUrl(QString("vk://group/%1/%2").arg(-group.id).arg(group.songs_count)));
-            song.set_artist(tr(" Group radio"));
-            result.metadata_ = song;
+            result.metadata_ = group.toOwnerRadio();
             ret << result;
         }
         qLog(Info) << "Found" << groups.count() << "groups.";
