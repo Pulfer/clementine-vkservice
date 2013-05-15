@@ -104,16 +104,16 @@
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="enable_caching">
+       <widget class="QCheckBox" name="groups_in_global_search">
         <property name="text">
-         <string>Enable automatic cashing.</string>
+         <string>Show groups in global search result.</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="groups_in_global_search">
+       <widget class="QCheckBox" name="enable_caching">
         <property name="text">
-         <string>Show groups ing slobal search result.</string>
+         <string>Enable automatic cashing.</string>
         </property>
        </widget>
       </item>
