@@ -5,9 +5,11 @@
 #include <QClipboard>
 #include <QDir>
 #include <QEventLoop>
+#include <QFile>
 #include <QMenu>
 #include <QSettings>
 #include <QTimer>
+#include <QTemporaryFile>
 
 #include <boost/scoped_ptr.hpp>
 
@@ -17,6 +19,7 @@
 #include "core/mergedproxymodel.h"
 #include "core/player.h"
 #include "core/timeconstants.h"
+#include "core/taskmanager.h"
 #include "ui/iconloader.h"
 #include "widgets/didyoumean.h"
 
@@ -110,59 +113,67 @@ static Song SongFromUrl(QUrl url) {
 
 
 
-/***
+/*******************************************************************************
+ *
  * MusicOwner
- */
+ *
+ *******************************************************************************/
 
 VkService::MusicOwner::MusicOwner(const Song &owner_radio) {
     QStringList tokens = owner_radio.url().toString().remove("vk://").split('/');
-    id = -tokens[1].toInt();
-    name = owner_radio.comment();
-    songs_count = tokens[2].toInt();
-    screen_name = tokens[3];
+    id_ = -tokens[1].toInt();
+    name_ = owner_radio.comment();
+    songs_count_ = tokens[2].toInt();
+    screen_name_ = tokens[3];
 }
 
 Song VkService::MusicOwner::toOwnerRadio() const {
     Song song;
-    song.set_title(tr("%1 (%0 songs)").arg(songs_count).arg(name));
-    song.set_comment(name);
-    song.set_url(QUrl(QString("vk://group/%1/%2/%3").arg(-id).arg(songs_count)
-                      .arg(screen_name)));
+    song.set_title(tr("%1 (%0 songs)").arg(songs_count_).arg(name_));
+    song.set_comment(name_);
+    song.set_url(QUrl(QString("vk://group/%1/%2/%3").arg(-id_).arg(songs_count_)
+                      .arg(screen_name_)));
     song.set_artist(tr(" Group radio"));
     return song;
 }
 
 QDataStream &operator <<(QDataStream &stream, const VkService::MusicOwner &val)
 {
-    stream << val.id;
-    stream << val.name;
-    stream << val.songs_count;
-    stream << val.screen_name;
+    stream << val.id_;
+    stream << val.name_;
+    stream << val.songs_count_;
+    stream << val.screen_name_;
     return stream;
 }
 
 QDataStream &operator >>(QDataStream &stream, VkService::MusicOwner &val)
 {
-    stream >> val.id;
-    stream >> val.name;
-    stream >> val.songs_count;
-    stream >> val.screen_name;
+    stream >> val.id_;
+    stream >> val.name_;
+    stream >> val.songs_count_;
+    stream >> val.screen_name_;
     return stream;
 }
 
 QDebug operator <<(QDebug d, const VkService::MusicOwner &owner)
 {
     d << "MusicOwner("
-      << owner.id << ","
-      << owner.name << ","
-      << owner.songs_count << ","
-      << owner.screen_name << ")";
+      << owner.id_ << ","
+      << owner.name_ << ","
+      << owner.songs_count_ << ","
+      << owner.screen_name_ << ")";
     return d;
 }
 
-/***
+
+
+
+
+/*****************************************************************************
+ *
  * VkService realisation
- */
+ *
+ *****************************************************************************/
 
 VkService::VkService(Application *app, InternetModel *parent) :
     InternetService(kServiceName, app, parent, parent),
@@ -183,6 +194,7 @@ VkService::VkService(Application *app, InternetModel *parent) :
     my_id_(0),
     url_handler_(new VkUrlHandler(this, this)),
     audio_provider_(nullptr),
+    cache_(new VkMusicCache(this)),
     last_search_id_(0)
 {
     QSettings s;
@@ -248,6 +260,8 @@ void VkService::LazyPopulate(QStandardItem *parent)
         break;
     case Type_Recommendations:
         UpdateRecommendations();
+        break;
+    case Type_Bookmark:
         break;
 
     default:
@@ -370,8 +384,6 @@ void VkService::ItemDoubleClicked(QStandardItem *item)
 
 QList<QAction *> VkService::playlistitem_actions(const Song &song)
 {
-    // TODO: Unravel 'if' cascades.
-
     QList<QAction *> actions;
     QString url = song.url().toString();
 
@@ -392,7 +404,7 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         }
     }
 
-    // Adding song actions.
+    // Adding songs actions.
     find_this_artist_->setVisible(true);
     actions << find_this_artist_;
 
@@ -404,8 +416,11 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         actions << remove_from_my_music_;
     }
 
-    actions << copy_share_url_
-            << add_song_to_cache_;
+    actions << copy_share_url_;
+
+    if (!cache()->InCache(song.url())) {
+        actions << add_song_to_cache_;
+    }
 
     return actions;
 }
@@ -435,6 +450,79 @@ QWidget *VkService::HeaderWidget() const
     } else {
         return nullptr;
     }
+}
+
+QStandardItem* VkService::CreateAndAppendRow(QStandardItem *parent, VkService::ItemType type){
+
+    QStandardItem* item = nullptr;
+
+    switch (type) {
+    case Type_NeedLogin:
+        item = new QStandardItem(
+                    QIcon(),
+                    tr("Double click to login")
+                    );
+        item->setData(InternetModel::PlayBehaviour_DoubleClickAction,
+                             InternetModel::Role_PlayBehaviour);\
+        break;
+    case Type_Loading:
+        item = new QStandardItem(
+                    QIcon(),
+                    tr("Loading...")
+                    );
+        break;
+
+    case Type_More:
+        item = new QStandardItem(
+                    QIcon(),
+                    tr("More")
+                    );
+        item->setData(InternetModel::PlayBehaviour_DoubleClickAction,
+                             InternetModel::Role_PlayBehaviour);
+        break;
+
+    case Type_Recommendations:
+        item = new QStandardItem(
+                    QIcon(":vk/recommends.png"),
+                    tr("My Recommendations"));
+        item->setData(true, InternetModel::Role_CanLazyLoad);
+        item->setData(InternetModel::PlayBehaviour_MultipleItems,
+                                  InternetModel::Role_PlayBehaviour);
+        recommendations_ = item;
+        break;
+
+    case Type_MyMusic:
+        item = new QStandardItem(
+                    QIcon(":vk/my_music.png"),
+                    tr("My Music"));
+        item->setData(true, InternetModel::Role_CanLazyLoad);
+        item->setData(InternetModel::PlayBehaviour_MultipleItems,
+                           InternetModel::Role_PlayBehaviour);
+        my_music_ = item;
+        break;
+
+    case Type_Search:
+        item = new QStandardItem(
+                    QIcon(":vk/find.png"),
+                    tr("Search"));
+        item->setData(InternetModel::PlayBehaviour_MultipleItems,
+                           InternetModel::Role_PlayBehaviour);
+        search_ = item;
+        break;
+
+    case Type_Bookmark:
+        qLog(Error) << "Use AppendBookmarkFromRadio(QStandardItem *parent, const Song &owner_radio)"
+                    << "for creating Bookmark item instead.";
+        break;
+
+    default:
+        qLog(Error) << "Invalid type for creating" << type;
+        break;
+    }
+
+    item->setData(type, InternetModel::Role_Type);
+    parent->appendRow(item);
+    return item;
 }
 
 
@@ -713,14 +801,12 @@ void VkService::CopyShareUrl()
 
 void VkService::AddToBookmarks()
 {
-    TRACE;
     AppendBookmarkFromRadio(root_item_, selected_song_);
     SaveBookmarks();
 }
 
 void VkService::RemoveFromBookmark()
 {
-    TRACE;
     QModelIndex current(model()->current_index());
     root_item_->removeRow(current.row());
     SaveBookmarks();
@@ -728,7 +814,6 @@ void VkService::RemoveFromBookmark()
 
 void VkService::SaveBookmarks()
 {
-    TRACE;
     QSettings s;
     s.beginGroup(kSettingGroup);
 
@@ -762,6 +847,26 @@ void VkService::LoadBookmarks()
     }
     s.endArray();
 }
+
+
+QStandardItem* VkService::AppendBookmarkFromRadio(QStandardItem *parent, const Song &owner_radio)
+{
+    MusicOwner owner(owner_radio);
+    QStandardItem *item = new QStandardItem(
+                QIcon(":vk/group.png"),
+                owner.name());
+
+    item->setData(QVariant::fromValue(owner) ,Role_MusicOwnerMetadata);
+    item->setData(Type_Bookmark, InternetModel::Role_Type);
+    item->setData(true, InternetModel::Role_CanLazyLoad);
+    item->setData(InternetModel::PlayBehaviour_MultipleItems,
+                       InternetModel::Role_PlayBehaviour);
+    parent->appendRow(item);
+    return item;
+}
+
+
+
 
 /***
  * Search
@@ -1039,99 +1144,18 @@ void VkService::GroupSearchRecived(VkService::RequestID id, Vreen::Reply *reply)
     emit GroupSearchResult(id, MusicOwner::parseMusicOwnerList(groups));
 }
 
+
+
+
 /***
  * Utils
  */
-
-QStandardItem* VkService::CreateAndAppendRow(QStandardItem *parent, VkService::ItemType type){
-
-    QStandardItem* item;
-
-    switch (type) {
-    case Type_NeedLogin:
-        item = new QStandardItem(
-                    QIcon(),
-                    tr("Double click to login")
-                    );
-        item->setData(InternetModel::PlayBehaviour_DoubleClickAction,
-                             InternetModel::Role_PlayBehaviour);\
-        break;
-    case Type_Loading:
-        item = new QStandardItem(
-                    QIcon(),
-                    tr("Loading...")
-                    );
-        break;
-
-    case Type_More:
-        item = new QStandardItem(
-                    QIcon(),
-                    tr("More")
-                    );
-        item->setData(InternetModel::PlayBehaviour_DoubleClickAction,
-                             InternetModel::Role_PlayBehaviour);
-        break;
-
-    case Type_Recommendations:
-        item = new QStandardItem(
-                    QIcon(":vk/recommends.png"),
-                    tr("My Recommendations"));
-        item->setData(true, InternetModel::Role_CanLazyLoad);
-        item->setData(InternetModel::PlayBehaviour_MultipleItems,
-                                  InternetModel::Role_PlayBehaviour);
-        recommendations_ = item;
-        break;
-
-    case Type_MyMusic:
-        item = new QStandardItem(
-                    QIcon(":vk/my_music.png"),
-                    tr("My Music"));
-        item->setData(true, InternetModel::Role_CanLazyLoad);
-        item->setData(InternetModel::PlayBehaviour_MultipleItems,
-                           InternetModel::Role_PlayBehaviour);
-        my_music_ = item;
-        break;
-
-    case Type_Search:
-        item = new QStandardItem(
-                    QIcon(":vk/find.png"),
-                    tr("Search"));
-        item->setData(InternetModel::PlayBehaviour_MultipleItems,
-                           InternetModel::Role_PlayBehaviour);
-        search_ = item;
-        break;
-
-    default:
-        qLog(Error) << "Invalid type for creating" << type;
-        break;
-    }
-
-    item->setData(type, InternetModel::Role_Type);
-    parent->appendRow(item);
-    return item;
-}
-
 
 void VkService::AppendSongs(QStandardItem *parent, const SongList &songs)
 {
     foreach (auto song, songs) {
         parent->appendRow(CreateSongItem(song));
     }
-}
-
-QStandardItem* VkService::AppendBookmarkFromRadio(QStandardItem *parent, const Song &owner_radio)
-{
-    QStandardItem *item = new QStandardItem(
-                QIcon(":vk/group.png"),
-                owner_radio.comment());
-
-    item->setData(QVariant::fromValue(owner_radio) ,InternetModel::Role_SongMetadata);
-    item->setData(Type_Bookmark, InternetModel::Role_Type);
-    item->setData(true, InternetModel::Role_CanLazyLoad);
-    item->setData(InternetModel::PlayBehaviour_SingleItem,
-                       InternetModel::Role_PlayBehaviour);
-    parent->appendRow(item);
-    return item;
 }
 
 void VkService::UpdateSettings()
@@ -1177,14 +1201,223 @@ VkService::MusicOwnerList VkService::MusicOwner::parseMusicOwnerList(const QVari
     foreach (auto item, list) {
         auto map = item.toMap();
         MusicOwner owner;
-        owner.songs_count = map.value("songs_count").toInt();
-        owner.id = map.value("id").toInt();
-        owner.name = map.value("name").toString();
-        owner.screen_name = map.value("screen_name").toString();
-        owner.photo = map.value("photo").toUrl();
+        owner.songs_count_ = map.value("songs_count").toInt();
+        owner.id_ = map.value("id").toInt();
+        owner.name_ = map.value("name").toString();
+        owner.screen_name_ = map.value("screen_name").toString();
+        owner.photo_ = map.value("photo").toUrl();
 
         result.append(owner);
     }
 
     return result;
+}
+
+
+
+/*******************************************************************
+ *
+ *  VkMusicCache realisation
+ *
+ ******************************************************************/
+
+VkMusicCache::VkMusicCache(VkService *service, QObject *parent)
+    :QObject(parent),
+      service_(service),
+      current_cashing_index(0),
+      is_downloading(false),
+      is_aborted(false),
+      file_(nullptr),
+      network_manager_(new QNetworkAccessManager),
+      reply_(nullptr)
+{
+}
+
+QUrl VkMusicCache::Get(const QUrl &url)
+{
+    QString cached_filename = CachedFilename(url);
+    QUrl result;
+
+    if (InCache(cached_filename)) {
+        qLog(Info) << "Use cashed file" << cached_filename;
+        result = QUrl("file://" + cached_filename);
+    } else {
+        result = service_->GetSongPlayUrl(url, false);
+
+        if (service_->isCachingEnabled()) {
+            AddToQueue(cached_filename, result);
+            current_cashing_index = queue_.size();
+        }
+    }
+    return result;
+}
+
+
+void VkMusicCache::ForceCache(const QUrl &url)
+{
+    AddToQueue(CachedFilename(url), service_->GetSongPlayUrl(url));
+}
+
+void VkMusicCache::BreakCurrentCaching()
+{
+    if (current_cashing_index > 0) {
+        // Current song in queue
+        queue_.removeAt(current_cashing_index - 1);
+    } else if (current_cashing_index == 0) {
+        // Current song is downloading
+        if (reply_) {
+            reply_->abort();
+            is_aborted = true;
+        }
+    }
+}
+
+
+/***
+ * Queue operations
+ */
+
+void VkMusicCache::AddToQueue(const QString &filename, const QUrl &download_url)
+{
+    DownloadItem item;
+    item.filename = filename;
+    item.url = download_url;
+    queue_.push_back(item);
+    DownloadNext();
+}
+
+
+
+/***
+ * Downloading
+ */
+
+void VkMusicCache::DownloadNext()
+{
+    if (is_downloading or queue_.isEmpty()) {
+        return;
+    } else {
+        current_download = queue_.first();
+        queue_.pop_front();
+        current_cashing_index--;
+
+        // Check file path and file existance first
+        if (QFile::exists(current_download.filename)) {
+            qLog(Warning) << "Tried to overwrite already cached file" << current_download.filename;
+            return;
+        }
+
+        // Create temporarry file we download to.
+        if (file_) {
+            qLog(Warning) << "QFile" << file_->fileName() << "is not null";
+            delete file_;
+        }
+
+        file_ = new QTemporaryFile;
+        if (!file_->open(QFile::WriteOnly)) {
+            qLog(Warning) << "Can not create temporary file" << file_->fileName()
+                          << "Download right away to" << current_download.filename;
+        }
+
+        // Start downloading
+        is_aborted = false;
+        is_downloading = true;
+        task_id = service_->app()->task_manager()->
+                StartTask(tr("Caching %1")
+                          .arg(QFileInfo(current_download.filename).baseName()));
+        reply_ = network_manager_->get(QNetworkRequest(current_download.url));
+        connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
+        connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
+        connect(reply_,SIGNAL(downloadProgress(qint64,qint64)), SLOT(DownloadProgress(qint64,qint64)));
+        qLog(Info)<< "Start cashing" << current_download.filename  << "from" << current_download.url;
+    }
+}
+
+void VkMusicCache::DownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    if (bytesTotal) {
+        int progress = round(100 * bytesReceived / bytesTotal);
+        service_->app()->task_manager()->SetTaskProgress(task_id,progress,100);
+    }
+}
+
+void VkMusicCache::DownloadReadyToRead()
+{
+    if (file_) {
+        file_->write(reply_->readAll());
+    } else {
+        qLog(Warning) << "Tried to write recived song to not created file";
+    }
+}
+
+void VkMusicCache::Downloaded()
+{
+    service_->app()->task_manager()->SetTaskFinished(task_id);
+    if (is_aborted or reply_->error()) {
+        if (reply_->error()) {
+            qLog(Error) << "Downloading failed" << reply_->errorString();
+        }
+    } else {
+        DownloadReadyToRead(); // Save all recent recived data.
+
+        QString path = service_->cacheDir();
+
+        if (file_->size()  >  0) {
+            QDir(path).mkpath(QFileInfo(current_download.filename).path());
+            if (file_->copy(current_download.filename)) {
+                qLog(Info) << "Cached" << current_download.filename;
+            } else {
+                qLog(Error) << "Unable to save" << current_download.filename
+                              << ":" << file_->errorString();
+            }
+        } else {
+            qLog(Error) << "File" << current_download.filename << "is empty";
+        }
+    }
+
+    delete file_;
+    file_ = nullptr;
+
+    reply_->deleteLater();
+    reply_ = nullptr;
+
+    is_downloading = false;
+    DownloadNext();
+}
+
+/***
+ * Utils
+ */
+
+inline bool VkMusicCache::InCache(const QString &filename)
+{
+    return QFile::exists(filename);
+}
+
+inline bool VkMusicCache::InCache(const QUrl &url)
+{
+    return InCache(CachedFilename(url));
+}
+
+QString VkMusicCache::CachedFilename(QUrl url)
+{
+    QStringList args = url.toString().remove("vk://").split('/');
+
+    QString cache_filename;
+    if (args.size() == 4) {
+        cache_filename = service_->cacheFilename();
+        cache_filename.replace("%artist",args[2]);
+        cache_filename.replace("%title", args[3]);
+    } else {
+        qLog(Warning) << "Song url with args" << args << "does not contain artist and title"
+                      << "use id as file name for cache.";
+        cache_filename = args[1];
+    }
+
+    QString cache_dir = service_->cacheDir();
+    if (cache_dir.isEmpty()) {
+        qLog(Warning) << "Cache dir not defined";
+        return "";
+    }
+    return cache_dir+'/'+cache_filename+".mp3"; //TODO(shed): Maybe use extensiion from link? Seems it's always mp3.
 }

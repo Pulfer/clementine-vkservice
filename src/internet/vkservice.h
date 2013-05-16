@@ -72,6 +72,10 @@ public:
         Type_Search
     };
 
+    enum Role {
+        Role_MusicOwnerMetadata = InternetModel::RoleCount
+    };
+
     enum RequestType {
         GlobalSearch,
         LocalSearch,
@@ -111,12 +115,14 @@ public:
     {
     public:
         MusicOwner() :
-            songs_count(0),
-            id(0)
+            songs_count_(0),
+            id_(0)
         {}
 
         explicit MusicOwner(const Song &owner_radio);
         Song toOwnerRadio() const;
+
+        QString name() { return name_; }
 
         static QList<MusicOwner> parseMusicOwnerList(const QVariant &request_result);
 
@@ -125,11 +131,11 @@ public:
         friend QDataStream &operator >>(QDataStream &stream, VkService::MusicOwner &val);
         friend QDebug operator<< (QDebug d, const MusicOwner &owner);
 
-        int songs_count;
-        int id; // if id > 0 is user otherwise id group
-        QString name;
-        QString screen_name; //name used in url http://vk.com/<screen_name> for example: http://vk.com/shedward
-        QUrl photo;
+        int songs_count_;
+        int id_; // if id > 0 is user otherwise id group
+        QString name_;
+        QString screen_name_; //name used in url http://vk.com/<screen_name> for example: http://vk.com/shedward
+        QUrl photo_;
     };
 
     typedef QList<MusicOwner> MusicOwnerList;
@@ -153,16 +159,13 @@ public:
     bool WaitForReply(Vreen::Reply *reply);
 
     /* Music */
+    VkMusicCache* cache() { return cache_; }
     void SetCurrentSongFromUrl(const QUrl &url); // Used if song taked from cache.
     QUrl GetSongPlayUrl(const QUrl &url, bool is_playing = true);
     UrlHandler::LoadResult GetGroupNextSongUrl(const QUrl& url); // Return random song result from group playlist.
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
     void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
-
-    void MoreRecommendations();
-    Q_SLOT void SearchSongs(QString query);
-    void MoreSearch();
 
     /* Settings */
     void UpdateSettings();
@@ -195,7 +198,10 @@ private slots:
 
     /* Music */
     void UpdateMyMusic();
+    Q_SLOT void SearchSongs(QString query);
+    void MoreSearch();
     void UpdateRecommendations();
+    void MoreRecommendations();
     void FindThisArtist();
     void AddToMyMusic();
     void AddToMyMusicCurrent();
@@ -248,6 +254,7 @@ private:
 
     /* Music */
     Vreen::AudioProvider* audio_provider_;
+    VkMusicCache* cache_;
     // Keeping when more recent results recived.
     // Using for prevent loading tardy result instead.
     uint last_search_id_;
@@ -272,6 +279,60 @@ private:
     bool groups_in_global_search_;
     QString cacheDir_;
     QString cacheFilename_;
+};
+
+
+
+
+class VkMusicCache : public QObject
+{
+    Q_OBJECT
+public:
+    explicit VkMusicCache(VkService* service, QObject *parent = 0);
+    ~VkMusicCache() {}
+    QUrl Get(const QUrl &url);
+    void ForceCache(const QUrl &url);
+    void BreakCurrentCaching();
+    bool InCache(const QUrl &url);
+private slots:
+    bool InCache(const QString &filename);
+
+    void AddToQueue(const QString &filename, const QUrl &download_url);
+
+    void DownloadNext();
+    void DownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    void DownloadReadyToRead();
+    void Downloaded();
+
+private:
+    struct DownloadItem {
+        QString filename;
+        QUrl url;
+
+        bool operator ==(const DownloadItem &rhv) {
+            return filename == rhv.filename;
+        }
+    };
+
+    QString CachedFilename(QUrl url);
+
+    VkService* service_;
+
+    QList<DownloadItem> queue_;
+    // Contain index of current song in queue, need for removing if song was skipped.
+    // Is zero if song downloading now, and less that zero if current song not caching or cached.
+    int current_cashing_index;
+
+    DownloadItem current_download;
+    bool is_downloading;
+    bool is_aborted;
+    int task_id;
+
+
+    QFile *file_;
+
+    QNetworkAccessManager *network_manager_;
+    QNetworkReply *reply_;
 };
 
 Q_DECLARE_METATYPE(VkService::MusicOwner)
