@@ -1122,22 +1122,24 @@ QUrl VkService::GetSongPlayUrl(const QUrl &url, bool is_playing)
     }
 
     QString song_id =  tokens[0];
-    Vreen::AudioItemListReply *song_request = audio_provider_->getAudiosByIds(song_id);
 
-    emit StopWaiting(); // Stop all previous requests.
-    bool succ = WaitForReply(song_request);
+    if (HasAccount()){
+        Vreen::AudioItemListReply *song_request = audio_provider_->getAudiosByIds(song_id);
+        emit StopWaiting(); // Stop all previous requests.
+        bool succ = WaitForReply(song_request);
 
-    if (succ and not song_request->result().isEmpty()) {
-         Vreen::AudioItem song = song_request->result()[0];
-         if (is_playing) {
-             current_song_ = FromAudioItem(song);
-             current_song_.set_url(url);
-         }
-         return song.url();
-    } else {
-        qLog(Info) << "Unresolved url by id" << song_id;
-        return QUrl();
+        if (succ and not song_request->result().isEmpty()) {
+            Vreen::AudioItem song = song_request->result()[0];
+            if (is_playing) {
+                current_song_ = FromAudioItem(song);
+                current_song_.set_url(url);
+            }
+            return song.url();
+        }
     }
+
+    qLog(Info) << "Unresolved url by id" << song_id;
+    return QUrl();
 }
 
 UrlHandler::LoadResult VkService::GetGroupNextSongUrl(const QUrl &url)
@@ -1155,25 +1157,27 @@ UrlHandler::LoadResult VkService::GetGroupNextSongUrl(const QUrl &url)
         songs_count = kMaxVkSongList;
     }
 
-    // Getting one random song from groups playlist.
-    Vreen::AudioItemListReply* song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
+    if (HasAccount()) {
+        // Getting one random song from groups playlist.
+        Vreen::AudioItemListReply* song_request = audio_provider_->getContactAudio(-gid,1,random() % songs_count);
 
-    emit StopWaiting(); // Stop all previous requests.
-    bool succ = WaitForReply(song_request);
+        emit StopWaiting(); // Stop all previous requests.
+        bool succ = WaitForReply(song_request);
 
-    if (succ and not song_request->result().isEmpty()) {
-         Vreen::AudioItem song = song_request->result()[0];
-         current_group_url_ = url;
-         current_song_ = FromAudioItem(song);
-         emit StreamMetadataFound(url, current_song_);
-         return UrlHandler::LoadResult(url,
-                                       UrlHandler::LoadResult::TrackAvailable,
-                                       song.url(),
-                                       current_song_.length_nanosec());
-    } else {
-        qLog(Info) << "Unresolved group url" << url;
-        return UrlHandler::LoadResult();
+        if (succ and not song_request->result().isEmpty()) {
+            Vreen::AudioItem song = song_request->result()[0];
+            current_group_url_ = url;
+            current_song_ = FromAudioItem(song);
+            emit StreamMetadataFound(url, current_song_);
+            return UrlHandler::LoadResult(url,
+                                          UrlHandler::LoadResult::TrackAvailable,
+                                          song.url(),
+                                          current_song_.length_nanosec());
+        }
     }
+
+    qLog(Info) << "Unresolved group url" << url;
+    return UrlHandler::LoadResult();
 }
 
 void VkService::SetCurrentSongFromUrl(const QUrl &url)

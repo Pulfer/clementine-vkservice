@@ -38,6 +38,7 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
 void VkUrlHandler::TrackSkipped()
 {
+    qLog(Debug) << "###    SKIPED    ###";
     service_->cache()->BreakCurrentCaching();
 }
 
@@ -48,6 +49,7 @@ void VkUrlHandler::ForceAddToCache(const QUrl &url)
 
 UrlHandler::LoadResult VkUrlHandler::LoadNext(const QUrl &url)
 {
+    qLog(Debug) << "###    NEXT    ###";
     if (url.toString().startsWith("vk://group"))
         return StartLoading(url);
     else
