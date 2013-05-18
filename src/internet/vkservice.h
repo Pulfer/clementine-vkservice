@@ -12,7 +12,7 @@
 #include "vkurlhandler.h"
 
 /***
- * TODO:
+ * TODO(Vk): SUMMARY
  *  Cashing:
  *      - Using playing stream for caching.
  *          First version - return downloading filename to GStreamer.
@@ -20,8 +20,9 @@
  *          Second version  - beforehand load next file, but it's not always possible
  *          to predict correctly, for example if user start to play any other song he want.
  *  Groups:
- *      - Groups can be bookmarked. Maybe store bookmarks in vk servers, for sync between platforms for same user.
+ *      - Maybe store bookmarks in vk servers, for sync between platforms/computers for same user.
  *      - Maybe skip group radio if user press next before next song is received or any time out
+ *      - Use dynamic playlist instead/with radio.
  *
  *  Ui:
  *      - Actions should work with multiple selected items in playlist,
@@ -56,6 +57,7 @@ public:
     static const char* kDefCacheFilename;
     static QString kDefCacheDir();
     static const int kMaxVkSongList;
+    static const int kCustomSongCount;
 
     enum ItemType {        
         Type_Root = InternetModel::TypeCount,
@@ -72,15 +74,14 @@ public:
         Type_Search
     };
 
-    enum Role {
-        Role_MusicOwnerMetadata = InternetModel::RoleCount
-    };
+    enum Role { Role_MusicOwnerMetadata = InternetModel::RoleCount };
 
     enum RequestType {
         GlobalSearch,
         LocalSearch,
         MoreLocalSearch,
         UserAudio,
+        MoreUserAudio,
         UserRecomendations
     };
 
@@ -100,17 +101,16 @@ public:
                 break;
             }
         }
-
         int id() const { return id_; }
         RequestType type() const { return type_; }
-
     private:
         static uint last_id_;
         int id_;
         RequestType type_;
     };
 
-    // User or group
+    // Store information about user or group
+    // using in bookmarks.
     class MusicOwner
     {
     public:
@@ -119,13 +119,11 @@ public:
             id_(0)
         {}
 
-        explicit MusicOwner(const Song &owner_radio);
+        explicit MusicOwner(const QUrl &group_url);
         Song toOwnerRadio() const;
-
-        QString name() { return name_; }
-
+        QString name() const { return name_; }
+        int id() const { return id_; }
         static QList<MusicOwner> parseMusicOwnerList(const QVariant &request_result);
-
     private:
         friend QDataStream &operator <<(QDataStream &stream, const VkService::MusicOwner &val);
         friend QDataStream &operator >>(QDataStream &stream, VkService::MusicOwner &val);
@@ -186,7 +184,7 @@ signals:
     
 public slots:
     void ShowConfig();
-    void LoadSongList(uint uid, uint count = 0); // zero means - load full list
+    void LoadSongList(int uid, uint count = 0); // zero means - load full list
 
 private slots:
     /* Connection */
@@ -198,7 +196,9 @@ private slots:
 
     /* Music */
     void UpdateMyMusic();
-    Q_SLOT void SearchSongs(QString query);
+    void UpdateBookmarkSongs();
+    void LoadBookmarkSongs(QStandardItem *item);
+    void SearchSongs(QString query);
     void MoreSearch();
     void UpdateRecommendations();
     void MoreRecommendations();
@@ -218,6 +218,7 @@ private slots:
     void GroupSearchRecived(RequestID id, Vreen::Reply *reply);
 
     void MyMusicLoaded(RequestID rid, const SongList &songs);
+    void BookmarkSongsLoaded(RequestID rid, const SongList &songs);
     void RecommendationsLoaded(RequestID id, const SongList &songs);
     void SearchResultLoaded(RequestID rid, const SongList &songs);
 
@@ -225,6 +226,7 @@ private:
     /* Interface */
     QStandardItem *CreateAndAppendRow(QStandardItem *parent, VkService::ItemType type);
     void ClearStandartItem(QStandardItem*item);
+    QStandardItem * GetBookmarkItemById(int id);
     void CreateMenu();
     QStandardItem* root_item_;
     QStandardItem* recommendations_;
@@ -235,6 +237,7 @@ private:
 
     QAction* update_my_music_;
     QAction* update_recommendations_;
+    QAction* update_bookmark_;
     QAction* find_this_artist_;
     QAction* add_to_my_music_;
     QAction* remove_from_my_music_;
@@ -253,6 +256,14 @@ private:
     VkUrlHandler* url_handler_;
 
     /* Music */
+    Song FromAudioItem(const Vreen::AudioItem &item);
+    SongList FromAudioList(const Vreen::AudioItemList &list);
+    void AppendSongs(QStandardItem *parent, const SongList &songs);
+
+    QStandardItem *AppendBookmark(QStandardItem *parent, const MusicOwner &owner);
+    void SaveBookmarks();
+    void LoadBookmarks();
+
     Vreen::AudioProvider* audio_provider_;
     VkMusicCache* cache_;
     // Keeping when more recent results recived.
@@ -261,16 +272,7 @@ private:
     QString last_query_;
     Song selected_song_; // Store for context menu actions.
     Song current_song_; // Store for actions with now playing song.
-    // Store current group url for actions with it.
     QUrl current_group_url_;
-
-    Song FromAudioItem(const Vreen::AudioItem &item);
-    SongList FromAudioList(const Vreen::AudioItemList &list);
-    void AppendSongs(QStandardItem *parent, const SongList &songs);
-    QStandardItem *AppendBookmarkFromRadio(QStandardItem *parent, const Song &owner_radio);
-
-    void SaveBookmarks();
-    void LoadBookmarks();
 
     /* Settings */
     int maxGlobalSearch_;
@@ -290,15 +292,16 @@ class VkMusicCache : public QObject
 public:
     explicit VkMusicCache(VkService* service, QObject *parent = 0);
     ~VkMusicCache() {}
+    // Return file path if file in cache otherwise
+    // return internet url and add song to caching queue
     QUrl Get(const QUrl &url);
     void ForceCache(const QUrl &url);
     void BreakCurrentCaching();
     bool InCache(const QUrl &url);
+
 private slots:
     bool InCache(const QString &filename);
-
     void AddToQueue(const QString &filename, const QUrl &download_url);
-
     void DownloadNext();
     void DownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void DownloadReadyToRead();
@@ -317,20 +320,15 @@ private:
     QString CachedFilename(QUrl url);
 
     VkService* service_;
-
     QList<DownloadItem> queue_;
     // Contain index of current song in queue, need for removing if song was skipped.
     // Is zero if song downloading now, and less that zero if current song not caching or cached.
     int current_cashing_index;
-
     DownloadItem current_download;
     bool is_downloading;
     bool is_aborted;
     int task_id;
-
-
     QFile *file_;
-
     QNetworkAccessManager *network_manager_;
     QNetworkReply *reply_;
 };
