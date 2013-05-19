@@ -23,7 +23,6 @@ public:
 
 private:
     VkService* service_;
-    VkMusicCache* songs_cache_;
 };
 
 

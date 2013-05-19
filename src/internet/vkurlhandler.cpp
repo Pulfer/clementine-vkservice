@@ -7,8 +7,7 @@
 
 VkUrlHandler::VkUrlHandler(VkService *service, QObject *parent)
     : UrlHandler(parent),
-      service_(service),
-      songs_cache_(new VkMusicCache(service))
+      service_(service)
 {
 }
 
@@ -26,7 +25,7 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
         if (action == "song") {
             service_->SetCurrentSongFromUrl(url);
-            return LoadResult(url, LoadResult::TrackAvailable, songs_cache_->Get(url));
+            return LoadResult(url, LoadResult::TrackAvailable, service_->cache()->Get(url));
         } else if (action == "group"){
             return service_->GetGroupNextSongUrl(url);
         } else {
@@ -38,7 +37,6 @@ UrlHandler::LoadResult VkUrlHandler::StartLoading(const QUrl &url)
 
 void VkUrlHandler::TrackSkipped()
 {
-    qLog(Debug) << "###    SKIPED    ###";
     service_->cache()->BreakCurrentCaching();
 }
 
@@ -49,7 +47,6 @@ void VkUrlHandler::ForceAddToCache(const QUrl &url)
 
 UrlHandler::LoadResult VkUrlHandler::LoadNext(const QUrl &url)
 {
-    qLog(Debug) << "###    NEXT    ###";
     if (url.toString().startsWith("vk://group"))
         return StartLoading(url);
     else

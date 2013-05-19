@@ -1349,13 +1349,10 @@ void VkMusicCache::BreakCurrentCaching()
 {
     if (current_cashing_index > 0) {
         // Current song in queue
-        qLog(Debug) << "###    REMOVE FROM QUEUE    ###" << current_cashing_index << queue_[current_cashing_index - 1].filename;
         queue_.removeAt(current_cashing_index - 1);
     } else if (current_cashing_index == 0) {
         // Current song is downloading
-        qLog(Debug) << "###    REMOVE CURRENT    ### with reply" << (long)reply_;
         if (reply_) {
-            qLog(Debug) << "###    REMOVED    ###";
             reply_->abort();
             is_aborted = true;
         }
@@ -1415,7 +1412,6 @@ void VkMusicCache::DownloadNext()
         task_id = service_->app()->task_manager()->
                 StartTask(tr("Caching %1")
                           .arg(QFileInfo(current_download.filename).baseName()));
-        qLog(Debug) << "### Set reply ###" << current_download.filename;
         reply_ = network_manager_->get(QNetworkRequest(current_download.url));
         connect(reply_, SIGNAL(finished()), SLOT(Downloaded()));
         connect(reply_, SIGNAL(readyRead()), SLOT(DownloadReadyToRead()));
@@ -1469,7 +1465,6 @@ void VkMusicCache::Downloaded()
     delete file_;
     file_ = nullptr;
 
-    qLog(Debug) << "### Delete Reply ###";
     reply_->deleteLater();
     reply_ = nullptr;
 
