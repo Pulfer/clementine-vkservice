@@ -4,6 +4,7 @@
 #include "core/logging.h"
 
 #include "vkservice.h"
+#include "vkmusiccache.h"
 
 VkUrlHandler::VkUrlHandler(VkService *service, QObject *parent)
     : UrlHandler(parent),

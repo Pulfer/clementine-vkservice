@@ -1170,11 +1170,13 @@ optional_source(HAVE_VK
     internet/vksettingspage.cpp
     internet/vkurlhandler.cpp
     globalsearch/vksearchprovider.cpp
+    internet/vkmusiccache.cpp
   HEADERS
     internet/vkservice.h
     internet/vksettingspage.h
     internet/vkurlhandler.h
     globalsearch/vksearchprovider.h
+    internet/vkmusiccache.h
   UI
     internet/vksettingspage.ui
 )
