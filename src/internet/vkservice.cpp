@@ -445,9 +445,11 @@ QList<QAction *> VkService::playlistitem_actions(const Song &song)
         actions << remove_from_my_music_;
     }
 
+    copy_share_url_->setVisible(true);
     actions << copy_share_url_;
 
     if (!cache()->InCache(selected_song_.url())) {
+        add_song_to_cache_->setVisible(true);
         actions << add_song_to_cache_;
     }
 
