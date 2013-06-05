@@ -35,6 +35,7 @@
 
 #include "globalsearch/vksearchprovider.h"
 #include "vkmusiccache.h"
+#include "vksearchdialog.h"
 
 const char*  VkService::kServiceName = "Vk.com";
 const char*  VkService::kSettingGroup = "Vk.com";
@@ -210,7 +211,9 @@ VkService::VkService(Application *app, InternetModel *parent) :
     find_this_artist_(nullptr),
     add_to_my_music_(nullptr),
     remove_from_my_music_(nullptr),
+    search_bookmark_(nullptr),
     search_box_(new SearchBoxWidget(this)),
+    search_dialog_(new VkSearchDialog(this)),
     client_(new Vreen::Client),
     connection_(nullptr),
     hasAccount_(false),
@@ -300,6 +303,10 @@ void VkService::CreateMenu()
     context_menu_->addActions(GetPlaylistActions());
     context_menu_->addSeparator();
 
+    search_bookmark_ = context_menu_->addAction(
+                QIcon(":vk/find.png"), tr("Add group or user to bookmarks"),
+                this, SLOT(ShowSearchDialog()));
+
     add_to_bookmarks_ = context_menu_->addAction(
                 QIcon(":vk/add.png"), tr("Add to bookmarks"),
                 this, SLOT(AddSelectedToBookmarks()));
@@ -359,7 +366,8 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
             item_type == Type_Recommendations or parent_type == Type_Recommendations;
     const bool is_track =
             item_type == InternetModel::Type_Track;
-    const bool is_bookmark_ = item_type == Type_Bookmark;
+    const bool is_bookmark = item_type == Type_Bookmark;
+   // const bool is_root = item_type == Type_Root;
 
     bool is_in_mymusic = false;
     bool is_cached = false;
@@ -378,9 +386,10 @@ void VkService::ShowContextMenu(const QPoint &global_pos)
     add_to_my_music_->setVisible(is_track and not is_in_mymusic);
     remove_from_my_music_->setVisible(is_track and is_in_mymusic);
     copy_share_url_->setVisible(is_track);
-    remove_from_bookmarks_->setVisible(is_bookmark_);
-    update_bookmark_->setVisible(is_bookmark_);
+    remove_from_bookmarks_->setVisible(is_bookmark);
+    update_bookmark_->setVisible(is_bookmark);
     add_to_bookmarks_->setVisible(false);
+    search_bookmark_->setVisible(true);
 
     GetAppendToPlaylistAction()->setEnabled(is_playable);
     GetReplacePlaylistAction()->setEnabled(is_playable);
@@ -970,6 +979,11 @@ void VkService::CopyShareUrl()
     QApplication::clipboard()->setText(share_url);
 }
 
+void VkService::ShowSearchDialog()
+{
+    search_dialog_->show();
+}
+
 
 /***
  * Search
@@ -1206,35 +1220,12 @@ void VkService::SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply
     emit SongSearchResult(id, songs);
 }
 
-void VkService::GroupSearch(VkService::RequestID id, const QString &query, int count, int offset)
+void VkService::GroupSearch(VkService::RequestID id, const QString &query)
 {
     QVariantMap args;
     args.insert("q", query);
 
-//    This is using of 'execute' method that execute this VKScript method on vk server:
-//    var groups = API.groups.search({"q": Args.q});
-//    if (groups.length == 0) {
-//        return [];
-//    }
-
-//    var i = 1;
-//    var res = [];
-//    while (i < groups.length - 1){
-//        i = i + 1;
-//        var grp = groups[i];
-//        var songs = API.audio.getCount({oid: -grp.gid});
-//        if ( songs > 1 &&
-//            (grp.is_closed == 0 || grp.is_member == 1))
-//        {
-//            res = res + [{"songs_count" : songs,
-//                            "id" : -grp.gid,
-//                            "name" : grp.name,
-//                            "screen_name" : grp.screen_name,
-//                            "photo": grp.photo}];
-//        }
-//    }
-//    return  res;
-//
+//    This is using of 'execute' method that execute this VKScript method on vk server
 //    I leave it here just in case if my app will disappear or smth.
 
     auto reply = client_->request("execute.searchMusicGroup",args);
@@ -1251,7 +1242,27 @@ void VkService::GroupSearchRecived(VkService::RequestID id, Vreen::Reply *reply)
     emit GroupSearchResult(id, MusicOwner::parseMusicOwnerList(groups));
 }
 
+void VkService::BookmarkSearch(VkService::RequestID id, const QString &query)
+{
+    QVariantMap args;
+    args.insert("q", query);
 
+//    This is using of 'execute' method that execute this VKScript method on vk server
+//    I leave it here just in case if my app will disappear or smth.
+
+    auto reply = client_->request("execute.searchMusicOwner",args);
+
+    NewClosure(reply, SIGNAL(resultReady(QVariant)), this,
+               SLOT(BookmarkSearchRecived(RequestID,Vreen::Reply*)),
+               id, reply);
+}
+
+void VkService::BookmarkSearchRecived(RequestID id, Vreen::Reply *reply)
+{
+    QVariant owners = reply->response();
+    reply->deleteLater();
+    emit BookmarkSearchResult(id, MusicOwner::parseMusicOwnerList(owners));
+}
 
 
 /***

@@ -68,6 +68,23 @@ typedef QList<AudioItem> AudioItemList;
 template<>
 AudioItem Attachment::to(const Attachment &data);
 
+class AudioAlbum {
+public:
+    AudioAlbum(int oid, int aid, const QString &name);
+
+    int getOwnerId() const;
+    void setOwnerId(int value);
+    int getAlbumId() const;
+    void setAlbumId(int value);
+    QString getName() const;
+    void setName(const QString &value);
+
+private:
+    int owner_id;
+    int album_id;
+    QString name;
+};
+
 } // namespace Vreen
 
 Q_DECLARE_METATYPE(Vreen::AudioItem)

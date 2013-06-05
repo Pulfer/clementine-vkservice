@@ -81,9 +81,10 @@ AudioProvider::~AudioProvider()
  * \param uid
  * \param count
  * \param offset
+ * \param album_id
  * \return reply
  */
-AudioItemListReply *AudioProvider::getContactAudio(int uid, int count, int offset)
+AudioItemListReply *AudioProvider::getContactAudio(int uid, int count, int offset, int album_id)
 {
     Q_D(AudioProvider);
     QVariantMap args;
@@ -91,6 +92,9 @@ AudioItemListReply *AudioProvider::getContactAudio(int uid, int count, int offse
         args.insert(uid > 0 ? "uid" : "gid", qAbs(uid));
     args.insert("count", count);
     args.insert("offset", offset);
+    if (album_id) {
+        args.insert("album_id", album_id);
+    }
 
     auto reply = d->client->request<AudioItemListReply>("audio.get", args, AudioProviderPrivate::handleAudio);
     return reply;

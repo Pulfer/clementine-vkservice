@@ -27,6 +27,7 @@
  *  Ui:
  *      - Actions should work with multiple selected items in playlist,
  *          for example if user want to add many songs to his library.
+ *      - Open in browser group and users pages.
  */
 
 #define  VAR(var) qLog(Debug) << ("---    where " #var " =") << (var);
@@ -42,6 +43,7 @@ class Buddy;
 
 class SearchBoxWidget;
 class VkMusicCache;
+class VkSearchDialog;
 
 class VkService : public InternetService
 {
@@ -83,7 +85,8 @@ public:
         MoreLocalSearch,
         UserAudio,
         MoreUserAudio,
-        UserRecomendations
+        UserRecomendations,
+        Bookmarks
     };
 
     // The simple structure allows the handler to determine
@@ -164,7 +167,8 @@ public:
     UrlHandler::LoadResult GetGroupNextSongUrl(const QUrl& url); // Return random song result from group playlist.
 
     void SongSearch(RequestID id,const QString &query, int count = 50, int offset = 0);
-    void GroupSearch(RequestID id, const QString &query, int count = 20, int offset = 0);
+    void GroupSearch(RequestID id, const QString &query);
+    void BookmarkSearch(RequestID id, const QString &query);
 
     /* Settings */
     void UpdateSettings();
@@ -181,6 +185,7 @@ signals:
     void SongListLoaded(RequestID id, SongList songs);
     void SongSearchResult(RequestID id, const SongList &songs);
     void GroupSearchResult(RequestID id, const VkService::MusicOwnerList &groups);
+    void BookmarkSearchResult(RequestID id, const VkService::MusicOwnerList &owners);
     void StopWaiting();
     
 public slots:
@@ -209,6 +214,7 @@ private slots:
     void RemoveFromMyMusic();
     void AddToCache();
     void CopyShareUrl();
+    void ShowSearchDialog();
 
     void AddSelectedToBookmarks();
     void RemoveFromBookmark();
@@ -217,6 +223,7 @@ private slots:
     void CountRecived(RequestID rid, Vreen::IntReply* reply);
     void SongSearchRecived(RequestID id, Vreen::AudioItemListReply *reply);
     void GroupSearchRecived(RequestID id, Vreen::Reply *reply);
+    void BookmarkSearchRecived(RequestID id, Vreen::Reply *reply);
 
     void MyMusicLoaded(RequestID rid, const SongList &songs);
     void BookmarkSongsLoaded(RequestID rid, const SongList &songs);
@@ -246,8 +253,11 @@ private:
     QAction* copy_share_url_;
     QAction* add_to_bookmarks_;
     QAction* remove_from_bookmarks_;
+    QAction* search_bookmark_;
 
     SearchBoxWidget* search_box_;
+
+    VkSearchDialog* search_dialog_;
 
     /* Connection */
     Vreen::Client *client_;

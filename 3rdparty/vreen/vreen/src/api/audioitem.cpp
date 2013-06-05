@@ -168,5 +168,43 @@ void AudioItem::setAlbumId(int albumId)
     data->albumId = albumId;
 }
 
+
+AudioAlbum::AudioAlbum(int oid, int aid, const QString &name)
+    : owner_id(oid),
+      album_id(aid),
+      name(name)
+{
+}
+
+int AudioAlbum::getOwnerId() const
+{
+    return owner_id;
+}
+
+void AudioAlbum::setOwnerId(int value)
+{
+    owner_id = value;
+}
+
+int AudioAlbum::getAlbumId() const
+{
+    return album_id;
+}
+
+void AudioAlbum::setAlbumId(int value)
+{
+    album_id = value;
+}
+
+QString AudioAlbum::getName() const
+{
+    return name;
+}
+
+void AudioAlbum::setName(const QString &value)
+{
+    name = value;
+}
+
 } // namespace Vreen
 
